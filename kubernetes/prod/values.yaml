@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/mine-dd/dashboard
+  repository: ghcr.io/plan-eo/dashboard:prod-1.0.0
   tag: latest
   pullPolicy: Always
 
