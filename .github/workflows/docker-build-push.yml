@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "*"
 
 jobs:
   build-and-push:
@@ -14,15 +16,23 @@ jobs:
       packages: write
 
     steps:
+      # 1️⃣ Checkout code
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set lowercase repository owner
+      # 2️⃣ Lowercase repo owner
+      - name: Set lowercase owner
         run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
 
+      # 3️⃣ Setup QEMU
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      # 4️⃣ Setup Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # 5️⃣ Login to GHCR
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -30,6 +40,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # 6️⃣ Set IMAGE TAG safely
+      - name: Set Image Tag
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            echo "IMAGE_TAG=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          else
+            echo "IMAGE_TAG=${GITHUB_SHA}" >> $GITHUB_ENV
+          fi
+
+      # 7️⃣ Build & Push Image
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v6
         with:
@@ -37,7 +57,6 @@ jobs:
           file: docker/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ env.OWNER_LC }}/plan-eo-dashboard:latest
-            ghcr.io/${{ env.OWNER_LC }}/plan-eo-dashboard:${{ github.sha }}
-          build-args: |
-            VITE_MAPTILER_KEY=${{ secrets.VITE_MAPTILER_KEY || 'vJWNfIkxpqqguYqYGv4V' }}
+            ghcr.io/${{ env.OWNER_LC }}/dashboard:latest
+            ghcr.io/${{ env.OWNER_LC }}/dashboard:${{ github.sha }}
+            ghcr.io/${{ env.OWNER_LC }}/dashboard:${{ env.IMAGE_TAG }}
