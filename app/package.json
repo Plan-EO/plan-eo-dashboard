@@ -1,6 +1,6 @@
 {
   "name": "plan-eo",
-  "version": "0.3.12",
+  "version": "0.3.13",
   "private": true,
   "scripts": {
     "fetch-manifest": "bun run scripts/fetch-r2-manifest.ts && bun run scripts/generate-manifest-module.ts",
