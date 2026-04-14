@@ -1,18 +1,16 @@
-name: Docker Build & Push & Deploy
+name: Docker Build CI & Helm Update
 
 on:
   push:
-    branches:
-      - main
     tags:
-      - "*"
+      - "*.*"
 
 jobs:
-  build-and-deploy:
+  build-and-release:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
@@ -20,19 +18,29 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2️⃣ Lowercase owner
-      - name: Set lowercase owner
-        run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
-
-      # 3️⃣ Setup QEMU (multi-arch support)
+      # 2️⃣ Set up QEMU
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      # 4️⃣ Setup Buildx
+      # 3️⃣ Set up Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 5️⃣ Login to GHCR
+      # 4️⃣ Set project name
+      - name: Set environment variables
+        run: |
+          echo "BUILD_PROJ=plan-eo-dashboard" >> $GITHUB_ENV
+
+      # 5️⃣ Extract version from tag
+      - name: Get Tag Version
+        run: |
+          IMAGE_TAG=${GITHUB_REF#refs/tags/}
+          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
+
+          echo "Updating Helm values..."
+          yq eval ".image.tag = \"${IMAGE_TAG}\"" -i kubernetes/prod/values.yaml
+
+      # 6️⃣ Login to GHCR
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -40,34 +48,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 6️⃣ Set IMAGE TAG
-      - name: Set Image Tag
-        run: |
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            echo "IMAGE_TAG=${GITHUB_REF_NAME}" >> $GITHUB_ENV
-          else
-            echo "IMAGE_TAG=${GITHUB_SHA}" >> $GITHUB_ENV
-          fi
-
-      # 7️⃣ Build & Push Docker Image
-      - name: Build and Push Image
+      # 7️⃣ Build & Push Image
+      - name: Build and Push
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: docker/Dockerfile
+          file: ./docker/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ env.OWNER_LC }}/dashboard:latest
-            ghcr.io/${{ env.OWNER_LC }}/dashboard:${{ github.sha }}
-            ghcr.io/${{ env.OWNER_LC }}/dashboard:${{ env.IMAGE_TAG }}
+            ghcr.io/${{ github.repository_owner }}/${{ env.BUILD_PROJ }}:latest
+            ghcr.io/${{ github.repository_owner }}/${{ env.BUILD_PROJ }}:${{ env.IMAGE_TAG }}
 
-      # 8️⃣ Deploy ONLY when tag is created
-      - name: Deploy to Kubernetes
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          echo "${{ secrets.KUBECONFIG }}" > kubeconfig
-          export KUBECONFIG=kubeconfig
-
-          helm upgrade plan-eo-dashboard kubernetes/prod \
-            --set image.repository=ghcr.io/${{ env.OWNER_LC }}/dashboard \
-            --set image.tag=${GITHUB_REF_NAME}
+      # 8️⃣ Commit updated Helm values.yaml
+      - name: Commit Version Update
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "[skip ci] update helm image tag to ${{ env.IMAGE_TAG }}"
+          branch: main
+          file_pattern: kubernetes/prod/values.yaml
+          commit_user_name: GitHub Actions Bot
+          commit_user_email: github@virginia.edu
+          commit_author: GitHub Actions <github@virginia.edu>
