@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/plan-eo/dashboard
-  tag: prod-1.0.0
+  tag: prod-1.0.2
   pullPolicy: Always
 
 imagePullSecrets:
