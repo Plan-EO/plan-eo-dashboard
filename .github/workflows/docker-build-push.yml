@@ -22,23 +22,22 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      # 3️⃣ Set up Buildx
+      # 3️⃣ Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 4️⃣ Set lowercase repo owner (IMPORTANT FIX)
+      # 4️⃣ Set environment variables
       - name: Set environment variables
         run: |
-          echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
           echo "BUILD_PROJ=plan-eo-dashboard" >> $GITHUB_ENV
 
-      # 5️⃣ Get tag version
+      # 5️⃣ Extract tag version + update Helm values
       - name: Get Tag Version
         run: |
           IMAGE_TAG=${GITHUB_REF#refs/tags/}
           echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
 
-          # update helm values automatically
+          # update Helm values.yaml
           yq eval ".image.tag = \"${IMAGE_TAG}\"" -i kubernetes/prod/values.yaml
 
       # 6️⃣ Login to GHCR
@@ -49,19 +48,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 7️⃣ Build & Push Image (FIXED LOWERCASE GHCR)
-      - name: Build and Push
+      # 7️⃣ Build & Push Image (FIXED GHCR PATH)
+      - name: Build and Push Image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./docker/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ env.OWNER_LC }}/${{ env.BUILD_PROJ }}:latest
-            ghcr.io/${{ env.OWNER_LC }}/${{ env.BUILD_PROJ }}:${{ env.IMAGE_TAG }}
+            ghcr.io/plan-eo/plan-eo-dashboard:latest
+            ghcr.io/plan-eo/plan-eo-dashboard:${{ env.IMAGE_TAG }}
 
       # 8️⃣ Commit updated Helm values.yaml
-      - name: Commit Version Update
+      - name: Commit Helm Update
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "[skip ci] update helm image tag to ${{ env.IMAGE_TAG }}"
