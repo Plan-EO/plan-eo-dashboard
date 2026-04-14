@@ -20,3 +20,6 @@ resources:
   requests:
     cpu: "500m"
     memory: 1Gi
+
+pvc:
+  claimName: plan-eo-data-pvc

@@ -4,8 +4,10 @@ metadata:
   name: {{ include "plan-eo.fullname" . }}-app
   labels:
     {{- include "plan-eo.labels" . | nindent 4 }}
+
 spec:
   replicas: {{ .Values.replicaCount }}
+
   selector:
     matchLabels:
       {{- include "plan-eo.selectorLabels" . | nindent 6 }}
@@ -21,13 +23,24 @@ spec:
 
       containers:
         - name: {{ .Chart.Name }}
+
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
 
           ports:
             - name: http
-              containerPort: {{ .Values.service.targetPort }}  # 4000
+              containerPort: {{ .Values.service.targetPort }}
               protocol: TCP
+
+          volumeMounts:
+            - name: data-volume
+              mountPath: /usr/share/nginx/html/data
+              subPath: data
 
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+
+      volumes:
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: {{ .Values.pvc.claimName }}
