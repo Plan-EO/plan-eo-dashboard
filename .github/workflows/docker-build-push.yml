@@ -1,4 +1,4 @@
-name: Docker Build & Push
+name: Docker Build & Push & Deploy
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
       - "*"
 
 jobs:
-  build-and-push:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     permissions:
@@ -20,11 +20,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2️⃣ Lowercase repo owner
+      # 2️⃣ Lowercase owner
       - name: Set lowercase owner
         run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
 
-      # 3️⃣ Setup QEMU
+      # 3️⃣ Setup QEMU (multi-arch support)
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -40,7 +40,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 6️⃣ Set IMAGE TAG safely
+      # 6️⃣ Set IMAGE TAG
       - name: Set Image Tag
         run: |
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
@@ -49,8 +49,8 @@ jobs:
             echo "IMAGE_TAG=${GITHUB_SHA}" >> $GITHUB_ENV
           fi
 
-      # 7️⃣ Build & Push Image
-      - name: Build and Push Docker Image
+      # 7️⃣ Build & Push Docker Image
+      - name: Build and Push Image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -60,3 +60,14 @@ jobs:
             ghcr.io/${{ env.OWNER_LC }}/dashboard:latest
             ghcr.io/${{ env.OWNER_LC }}/dashboard:${{ github.sha }}
             ghcr.io/${{ env.OWNER_LC }}/dashboard:${{ env.IMAGE_TAG }}
+
+      # 8️⃣ Deploy ONLY when tag is created
+      - name: Deploy to Kubernetes
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          echo "${{ secrets.KUBECONFIG }}" > kubeconfig
+          export KUBECONFIG=kubeconfig
+
+          helm upgrade plan-eo-dashboard kubernetes/prod \
+            --set image.repository=ghcr.io/${{ env.OWNER_LC }}/dashboard \
+            --set image.tag=${GITHUB_REF_NAME}
