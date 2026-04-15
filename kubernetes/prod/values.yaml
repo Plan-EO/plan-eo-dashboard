@@ -1,18 +1,14 @@
 replicaCount: 1
-
 image:
   repository: ghcr.io/plan-eo/plan-eo-dashboard
-  tag: prod-1.0.7
+  tag: prod-1.0.8
   pullPolicy: Always
-
 imagePullSecrets:
   - name: ghcr-regcred
-
 service:
   type: ClusterIP
   port: 80
   targetPort: 80
-
 resources:
   limits:
     cpu: "1"
@@ -20,6 +16,5 @@ resources:
   requests:
     cpu: "500m"
     memory: 1Gi
-
 pvc:
   claimName: plan-eo-data-pvc
