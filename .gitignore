@@ -16,3 +16,4 @@ chat-backend/__pycache__/
 app/static/data-manifest.json
 app/src/lib/generated/dataManifest.ts
 
+.idea/
