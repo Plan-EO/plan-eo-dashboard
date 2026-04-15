@@ -21,11 +21,11 @@ metadata:
 spec:
   tls:
     - hosts:
-        - plan-eo-dashboard.ext-k8s.rc.virginia.edu
+        - plan-eo-dashboard.prod.ext-k8s.rc.virginia.edu
       secretName: plan-eo-dashboard-tls
 
   rules:
-    - host: plan-eo-dashboard.ext-k8s.rc.virginia.edu
+    - host: plan-eo-dashboard.prod.ext-k8s.rc.virginia.edu
       http:
         paths:
           - path: /
