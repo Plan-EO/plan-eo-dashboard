@@ -31,14 +31,18 @@ spec:
               containerPort: 80
               protocol: TCP
 
-#          volumeMounts:
-#            - name: data-volume
-#              mountPath: /usr/share/nginx/html/data
-
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
 
-#      volumes:
-#        - name: data-volume
-#          persistentVolumeClaim:
-#            claimName: {{ .Values.pvc.claimName }}
+# ---------------------------------------------------
+# PVC REMOVED FOR TESTING
+# ---------------------------------------------------
+# volumeMounts:
+#   - name: data-volume
+#     mountPath: /usr/share/nginx/html/data
+#
+# volumes:
+#   - name: data-volume
+#     persistentVolumeClaim:
+#       claimName: {{ .Values.pvc.claimName }}
+# ---------------------------------------------------
