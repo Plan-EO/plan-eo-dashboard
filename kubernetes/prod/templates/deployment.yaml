@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "plan-eo-dashboard.fullname" . }}-app
+  name: {{ include "plan-eo-dashboard.fullname" . }}
   labels:
     {{- include "plan-eo-dashboard.labels" . | nindent 4 }}
 
@@ -22,7 +22,7 @@ spec:
         {{- toYaml .Values.imagePullSecrets | nindent 8 }}
 
       containers:
-        - name: {{ .Chart.Name }}
+        - name: plan-eo-dashboard
 
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
