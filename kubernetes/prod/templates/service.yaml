@@ -4,10 +4,13 @@ metadata:
   name: {{ include "plan-eo-dashboard.fullname" . }}
   labels:
     {{- include "plan-eo-dashboard.labels" . | nindent 4 }}
+
 spec:
   type: {{ .Values.service.type }}
+
   selector:
     {{- include "plan-eo-dashboard.selectorLabels" . | nindent 4 }}
+
   ports:
     - name: http
       port: {{ .Values.service.port }}
