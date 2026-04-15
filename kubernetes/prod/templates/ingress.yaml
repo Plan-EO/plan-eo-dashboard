@@ -5,14 +5,25 @@ metadata:
   namespace: plan-eo-storage
   annotations:
     kubernetes.io/ingress.class: nginx
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.org/websocket-services: "plan-eo-dashboard"
-    acme.cert-manager.io/http01-edit-in-place: "true"
+
+    # SSL / cert-manager
     cert-manager.io/cluster-issuer: letsencrypt-cluster-issuer
-    nginx.org/proxy-connect-timeout: "600s"
-    nginx.org/proxy-read-timeout: "600s"
-    nginx.org/proxy-send-timeout: "600s"
+    acme.cert-manager.io/http01-edit-in-place: "true"
+
+    # NGINX tuning
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+
+    # Optional (only if needed for SPA routing)
+    nginx.ingress.kubernetes.io/rewrite-target: /
+
 spec:
+  tls:
+    - hosts:
+        - plan-eo-dashboard.ext-k8s.rc.virginia.edu
+      secretName: plan-eo-dashboard-tls
+
   rules:
     - host: plan-eo-dashboard.ext-k8s.rc.virginia.edu
       http:
@@ -24,7 +35,3 @@ spec:
                 name: plan-eo-dashboard
                 port:
                   number: 80
-  tls:
-    - hosts:
-        - plan-eo-dashboard.ext-k8s.rc.virginia.edu
-      secretName: plan-eo-dashboard-nginx-tls-ingress-secret
