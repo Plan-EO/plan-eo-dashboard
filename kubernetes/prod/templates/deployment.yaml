@@ -33,16 +33,3 @@ spec:
 
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-
-# ---------------------------------------------------
-# PVC REMOVED FOR TESTING
-# ---------------------------------------------------
-# volumeMounts:
-#   - name: data-volume
-#     mountPath: /usr/share/nginx/html/data
-#
-# volumes:
-#   - name: data-volume
-#     persistentVolumeClaim:
-#       claimName: {{ .Values.pvc.claimName }}
-# ---------------------------------------------------
