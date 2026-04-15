@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "plan-eo.fullname" . }}-app
+  name: {{ include "plan-eo-dashboard.fullname" . }}-app
   labels:
-    {{- include "plan-eo.labels" . | nindent 4 }}
+    {{- include "plan-eo-dashboard.labels" . | nindent 4 }}
 
 spec:
   replicas: {{ .Values.replicaCount }}
 
   selector:
     matchLabels:
-      {{- include "plan-eo.selectorLabels" . | nindent 6 }}
+      {{- include "plan-eo-dashboard.selectorLabels" . | nindent 6 }}
 
   template:
     metadata:
       labels:
-        {{- include "plan-eo.labels" . | nindent 8 }}
+        {{- include "plan-eo-dashboard.labels" . | nindent 8 }}
 
     spec:
       imagePullSecrets:
@@ -35,7 +35,6 @@ spec:
           volumeMounts:
             - name: data-volume
               mountPath: /usr/share/nginx/html/data
-              subPath: data
 
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

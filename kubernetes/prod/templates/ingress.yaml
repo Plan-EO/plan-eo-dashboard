@@ -1,12 +1,12 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: plan-eo-ingress
+  name: plan-eo-dashboard-ingress
   namespace: plan-eo-storage
   annotations:
     kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.org/websocket-services: "plan-eo"
+    nginx.org/websocket-services: "plan-eo-dashboard"
     acme.cert-manager.io/http01-edit-in-place: "true"
     cert-manager.io/cluster-issuer: letsencrypt-cluster-issuer
     nginx.org/proxy-connect-timeout: "600s"
@@ -14,17 +14,17 @@ metadata:
     nginx.org/proxy-send-timeout: "600s"
 spec:
   rules:
-    - host: plan-eo.pods.uvarc.io
+    - host: plan-eo-dashboard.ext-k8s.rc.virginia.edu
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: plan-eo
+                name: plan-eo-dashboard
                 port:
                   number: 80
   tls:
     - hosts:
-        - plan-eo.pods.uvarc.io
-      secretName: plan-eo-nginx-tls-ingress-secret
+        - plan-eo-dashboard.ext-k8s.rc.virginia.edu
+      secretName: plan-eo-dashboard-nginx-tls-ingress-secret

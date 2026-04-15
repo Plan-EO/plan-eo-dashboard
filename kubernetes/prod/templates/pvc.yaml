@@ -12,5 +12,3 @@ spec:
   resources:
     requests:
       storage: 50Gi
-
-  volumeName: plan-eo-storage-pv
