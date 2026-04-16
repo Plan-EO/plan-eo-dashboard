@@ -33,3 +33,12 @@ spec:
 
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+
+          volumeMounts:
+            - name: dashboard-storage
+              mountPath: /data
+
+      volumes:
+        - name: dashboard-storage
+          persistentVolumeClaim:
+            claimName: plan-eo-dashboard-pvc

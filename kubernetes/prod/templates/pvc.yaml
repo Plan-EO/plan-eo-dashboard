@@ -1,14 +1,12 @@
-#apiVersion: v1
-#kind: PersistentVolumeClaim
-#metadata:
-#  name: plan-eo-data-pvc
-#
-#spec:
-#  accessModes:
-#    - ReadWriteMany
-#
-#  storageClassName: csi-cephfs-sc
-#
-#  resources:
-#    requests:
-#      storage: 50Gi
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: plan-eo-dashboard-pvc
+  namespace: plan-eo-dashboard
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: csi-cephfs-sc
+  resources:
+    requests:
+      storage: 50Gi
