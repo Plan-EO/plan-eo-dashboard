@@ -22,7 +22,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: plan-eo-dashboard
+                name: plan-eo-dashboard-prod
                 port:
                   number: 80
 
