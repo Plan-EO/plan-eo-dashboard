@@ -36,7 +36,7 @@ spec:
 
           volumeMounts:
             - name: dashboard-storage
-              mountPath: /data
+              mountPath: /usr/share/nginx/html/data
 
       volumes:
         - name: dashboard-storage
