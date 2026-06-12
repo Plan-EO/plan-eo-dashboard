@@ -20,7 +20,8 @@
 
 {#if visible}
 	<div
-		class="{`absolute bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-white/30 bg-gradient-to-r from-white/80 to-white/70 p-3 shadow-lg backdrop-blur-md backdrop-filter`}}"
+		class="absolute bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-white/30 bg-gradient-to-r from-white/80 to-white/70 shadow-lg backdrop-blur-md backdrop-filter"
+		style="padding: 12px 48px 12px 12px;"
 	>
 		<!-- Positive/Negative section -->
 		<!-- <div class="mb-3">

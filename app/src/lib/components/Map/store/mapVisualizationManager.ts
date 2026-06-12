@@ -23,17 +23,6 @@ import {
   getDesignColors,
   getDefaultColor
 } from '../utils/pieChartUtils';
-import {
-  convertPointsToPolygons,
-  create3DBarLayer,
-  remove3DBarLayer,
-  get3DCameraSettings
-} from '../utils/barExtrusionUtils';
-import {
-  createHeatmapLayer,
-  removeHeatmapLayer,
-  isDataSuitableForHeatmap
-} from '../utils/heatmapUtils';
 import { debounce } from '../utils/urlParams'; // Assuming debounce is here
 import { dataPointsVisible, applyDataPointsVisibility } from '$lib/stores/dataPointsVisibility.store';
 
@@ -88,10 +77,7 @@ export async function updateMapVisualization(
     let dataToUpdate = filteredData;
     if (vizType === 'pie-charts') {
       dataToUpdate = getSeparatePieChartData(filteredData) as any;
-    } else if (vizType === '3d-bars') {
-      dataToUpdate = convertPointsToPolygons(filteredData) as any;
     }
-    // Heatmap uses point data directly, no conversion needed
 
     // Update the source data
     const source = map.getSource('points-source') as maplibregl.GeoJSONSource;
@@ -159,16 +145,6 @@ function ensurePointsOnTop(map: MaplibreMap) {
     // Then move data visualization layers to top
     // Order matters - last moved will be on top
     
-    // Heatmap layer (should be below dots/pies if they exist)
-    if (map.getLayer('heatmap-layer')) {
-      map.moveLayer('heatmap-layer');
-    }
-
-    // 3D bars layer
-    if (map.getLayer('3d-bars-layer')) {
-      map.moveLayer('3d-bars-layer');
-    }
-
     // Dots layer
     if (map.getLayer('points-layer')) {
       map.moveLayer('points-layer');
@@ -236,8 +212,6 @@ export async function addInitialPointsToMap(
     let dataToUse = filteredData;
     if (vizType === 'pie-charts') {
       dataToUse = getSeparatePieChartData(filteredData) as any;
-    } else if (vizType === '3d-bars') {
-      dataToUse = convertPointsToPolygons(filteredData) as any;
     }
 
     // Add the source
@@ -245,6 +219,9 @@ export async function addInitialPointsToMap(
       type: 'geojson',
       data: dataToUse
     });
+
+    // Determine initial visibility from store so layers are born with the right state
+    const initialVisibility: 'visible' | 'none' = get(dataPointsVisible) ? 'visible' : 'none';
 
     // Add layers based on visualization type
     if (vizType === 'pie-charts') {
@@ -254,31 +231,15 @@ export async function addInitialPointsToMap(
         loadingMessage.set(loading ? 'Generating pie charts...' : 'Loading...');
       });
 
-      // Add single symbol layer for pie charts with dynamic sorting
-      createSinglePieChartLayer(map, filteredData);
-    } else if (vizType === '3d-bars') {
-      // Add 3D bar extrusion layer
-      create3DBarLayer(map);
-
-      // Set optimal camera angle for 3D viewing
-      const cameraSettings = get3DCameraSettings();
-      map.easeTo({
-        pitch: cameraSettings.pitch,
-        bearing: cameraSettings.bearing,
-        duration: 1000
-      });
-    } else if (vizType === 'heatmap') {
-      // Add heatmap layer
-      createHeatmapLayer(map);
-
-      // Don't change the camera position for heatmap
-      // Heatmap should work at any zoom level
+      // Add single symbol layer — visibility baked in from the start
+      createSinglePieChartLayer(map, filteredData, initialVisibility);
     } else {
       // Add circle layer for dots
       map.addLayer({
         id: 'points-layer',
         type: 'circle',
         source: 'points-source',
+        layout: { 'visibility': initialVisibility },
         paint: {
           'circle-radius': 7,
           'circle-color': generateDesignColorExpression() as any,
@@ -290,10 +251,6 @@ export async function addInitialPointsToMap(
     }
 
     setPointsAddedToMap(true);
-    
-    // Apply visibility setting from store
-    const visible = get(dataPointsVisible);
-    applyDataPointsVisibility(map, visible);
     
     // Ensure correct layer ordering (data layers on top of rasters)
     ensurePointsOnTop(map);
@@ -349,12 +306,6 @@ export async function switchVisualizationType(
       // Remove pie chart layer
       removePieChartLayer(map);
       cleanupPieChartImages(map);
-    } else if (currentType === '3d-bars') {
-      // Remove 3D bar layer
-      remove3DBarLayer(map);
-    } else if (currentType === 'heatmap') {
-      // Remove heatmap layer
-      removeHeatmapLayer(map);
     } else {
       // Remove circle layer (dots)
       if (map.getLayer('points-layer')) {
@@ -380,41 +331,9 @@ export async function switchVisualizationType(
         loadingMessage.set(loading ? 'Generating pie charts...' : 'Loading...');
       });
 
-      // Add single pie chart layer with dynamic sorting
-      createSinglePieChartLayer(map, filteredData);
-    } else if (newType === '3d-bars') {
-      dataToUse = convertPointsToPolygons(filteredData) as any;
-
-      // Update source data
-      const source = map.getSource('points-source') as maplibregl.GeoJSONSource;
-      if (source) {
-        source.setData(dataToUse);
-      }
-
-      // Add 3D bar extrusion layer
-      create3DBarLayer(map);
-
-      // Set optimal camera angle for 3D viewing
-      const cameraSettings = get3DCameraSettings();
-      map.easeTo({
-        pitch: cameraSettings.pitch,
-        bearing: cameraSettings.bearing,
-        duration: 1000
-      });
-    } else if (newType === 'heatmap') {
-      // Heatmap uses point data directly
-
-      // Update source data
-      const source = map.getSource('points-source') as maplibregl.GeoJSONSource;
-      if (source) {
-        source.setData(dataToUse);
-      }
-
-      // Add heatmap layer
-      createHeatmapLayer(map);
-
-      // Don't change the camera position for heatmap
-      // Heatmap should work at any zoom level
+      // Add single pie chart layer — visibility baked in from the start
+      const switchVisibility: 'visible' | 'none' = get(dataPointsVisible) ? 'visible' : 'none';
+      createSinglePieChartLayer(map, filteredData, switchVisibility);
     } else {
       // Update source data for dots
       const source = map.getSource('points-source') as maplibregl.GeoJSONSource;
@@ -422,11 +341,13 @@ export async function switchVisualizationType(
         source.setData(dataToUse);
       }
 
-      // Add circle layer
+      // Add circle layer — visibility baked in from the start
+      const switchVisibility: 'visible' | 'none' = get(dataPointsVisible) ? 'visible' : 'none';
       map.addLayer({
         id: 'points-layer',
         type: 'circle',
         source: 'points-source',
+        layout: { 'visibility': switchVisibility },
         paint: {
           'circle-radius': 7,
           'circle-color': generateDesignColorExpression() as any,
@@ -438,7 +359,7 @@ export async function switchVisualizationType(
     }
 
     ensurePointsOnTop(map);
-    
+
     // Apply visibility setting from store after switching
     const visible = get(dataPointsVisible);
     applyDataPointsVisibility(map, visible);

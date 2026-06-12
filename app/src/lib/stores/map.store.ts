@@ -2,17 +2,20 @@ import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 
 // Visualization type for map points
-export type VisualizationType = 'dots' | 'pie-charts' | '3d-bars' | 'heatmap';
+export type VisualizationType = 'dots' | 'pie-charts';
 
 // Create a persistent visualization type store with map updates
 function createVisualizationTypeStore() {
   const STORAGE_KEY = 'visualizationType';
   const defaultType: VisualizationType = 'pie-charts';
 
-  // Load initial value from localStorage if available
-  const initialValue = browser
-    ? (localStorage.getItem(STORAGE_KEY) as VisualizationType) || defaultType
-    : defaultType;
+  // Load initial value from localStorage if available, falling back if the stored value is no longer valid
+  const validTypes: VisualizationType[] = ['dots', 'pie-charts'];
+  const stored = browser ? localStorage.getItem(STORAGE_KEY) : null;
+  const initialValue: VisualizationType =
+    stored && validTypes.includes(stored as VisualizationType)
+      ? (stored as VisualizationType)
+      : defaultType;
 
   const { subscribe, set, update } = writable<VisualizationType>(initialValue);
 

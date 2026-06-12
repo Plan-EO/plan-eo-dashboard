@@ -9,7 +9,6 @@
 	// import PasswordModal from '$components/ui/PasswordModal.svelte';
 	// import { isAuthenticated } from '$lib/stores/auth.store';
 	// import { browser, dev } from '$app/environment';
-	import ChatButton from '$components/ui/Chat/ChatButton.svelte';
 	import { page } from '$app/stores';
 	import { browser, dev } from '$app/environment';
 	// import { env } from '$env/dynamic/public';
@@ -58,9 +57,6 @@
 	{/if}
 	{#if children}{@render children()}{:else}
 		<!-- Content here -->
-	{/if}
-	{#if !isEmbedded}
-		<ChatButton />
 	{/if}
 	<!-- {/if} -->
 	<!-- <FooterMain /> -->

@@ -166,7 +166,19 @@ export function updateRasterLayerVisibility(id: string, isVisible: boolean): voi
     if (layer) {
       layer.isVisible = isVisible;
     }
-    return new Map(layers); // Create new Map instance for reactivity
+    return new Map(layers);
+  });
+}
+
+export function updateRasterLayerIsActive(id: string, isActive: boolean): void {
+  rasterLayers.update((layers) => {
+    const layer = layers.get(id);
+    if (layer) {
+      layer.isActive = isActive;
+      // When deactivating, also stop rendering it on the map
+      if (!isActive) layer.isVisible = false;
+    }
+    return new Map(layers);
   });
 }
 

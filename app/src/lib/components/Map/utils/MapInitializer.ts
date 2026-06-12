@@ -56,8 +56,8 @@ export let POINTS_DATA_URL = '';
  */
 export async function preloadData() {
   console.log('preloadData called');
-  // Parse URL parameters
-  const urlParams = parseUrlFilters();
+  // Parse URL parameters — skip applying filter stores; LayerManager owns that state
+  const urlParams = parseUrlFilters({ applyFilterStores: false });
   
   // Get the latest data file
   POINTS_DATA_URL = await getLatestDataFile();

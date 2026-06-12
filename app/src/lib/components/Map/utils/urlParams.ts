@@ -100,33 +100,36 @@ export function serializeFiltersToUrl(map: maplibregl.Map | null, opacity: numbe
 }
 
 /**
- * Parse URL parameters and update filter stores
+ * Parse URL parameters and update filter stores.
+ * Pass applyFilterStores: false to read position/style params without
+ * applying pathogen/age/syndrome filters (used when Layer Manager is active).
  */
-export function parseUrlFilters(): {
+export function parseUrlFilters(options?: { applyFilterStores?: boolean }): {
   center?: [number, number];
   zoom?: number;
   styleId?: string;
   opacity?: number;
-  hasFilters: boolean; // Add flag to indicate if any filter parameters are present
+  hasFilters: boolean;
 } {
+  const applyFilterStores = options?.applyFilterStores !== false; // default true
   const url = get(page).url;
   const params = url.searchParams;
 
   // Extract pathogens
   const pathogenParams = params.getAll('p');
-  if (pathogenParams.length > 0) {
+  if (applyFilterStores && pathogenParams.length > 0) {
     selectedPathogens.set(new Set(pathogenParams));
   }
 
   // Extract age groups
   const ageGroupParams = params.getAll('a');
-  if (ageGroupParams.length > 0) {
+  if (applyFilterStores && ageGroupParams.length > 0) {
     selectedAgeGroups.set(new Set(ageGroupParams));
   }
 
   // Extract syndromes
   const syndromeParams = params.getAll('s');
-  if (syndromeParams.length > 0) {
+  if (applyFilterStores && syndromeParams.length > 0) {
     selectedSyndromes.set(new Set(syndromeParams));
   }
 

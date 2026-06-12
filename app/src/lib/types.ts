@@ -56,7 +56,11 @@ export interface PointProperties {
   samples: number;
   prevalenceValue: number;
   standardError: number;
+  layerType?: 'Pathogen' | 'Risk Factor';
+  rescaleMin?: number;
+  rescaleMax?: number;
 }
+
 
 export type PointFeature = Feature<Point, PointProperties>;
 export type PointFeatureCollection = FeatureCollection<Point, PointProperties>;
@@ -87,7 +91,8 @@ export interface RasterLayer {
   sourceUrl: string; // The original URL provided by the user
   dataUrl?: string; // Canvas data URL for the processed GeoTIFF
   bounds?: [number, number, number, number]; // Optional geographic bounds [west, south, east, north]
-  isVisible: boolean; // Current visibility state
+  isVisible: boolean; // Whether the layer is rendered on the map (toggled in Active Raster Layers list)
+  isActive?: boolean; // Whether the layer is in the Active Raster Layers list (set by Risk Factors section / auto-show)
   opacity: number; // Current opacity state (0 to 1)
   isLoading?: boolean; // Optional flag for loading state (e.g., while fetching metadata)
   error?: string | null; // Optional error message if loading failed

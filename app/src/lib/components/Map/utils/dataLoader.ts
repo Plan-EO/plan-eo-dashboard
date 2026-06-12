@@ -10,7 +10,8 @@ import {
   ageGroupValToLab,
   ageGroupLabToVal,
   syndromeValToLab,
-  syndromeLabToVal
+  syndromeLabToVal,
+  clearFilterCache
 } from '$lib/stores/filter.store';
 import { convertCsvToGeoJson } from './geoJsonConverter';
 import { generateColors } from './colorManager';
@@ -20,36 +21,35 @@ import type { PointDataRow, PointFeatureCollection } from '$lib/types';
 
 // Helper function to load CSV data with caching
 let dataCache: PointFeatureCollection | null = null;
+let currentFetchController: AbortController | null = null;
 
 export async function loadPointsData(url: string, forceReload: boolean = false): Promise<void> {
   // console.log('loadPointsData called with URL:', url);
+
+  // Use cached data if available and not forcing reload (before aborting any in-flight request)
+  if (dataCache && !forceReload) {
+    console.log('Using cached data');
+    pointsData.set(dataCache);
+    return;
+  }
+
+  // Abort any in-flight fetch before starting a new one
+  if (currentFetchController) {
+    currentFetchController.abort();
+  }
+  currentFetchController = new AbortController();
+  const signal = currentFetchController.signal;
+
   isLoading.set(true);
   dataError.set(null);
 
   try {
-    // Log the current state of filters before loading data
-    // console.log('Loading data with filters:', {
-    //   pathogens: Array.from(get(selectedPathogens)),
-    //   ageGroups: Array.from(get(selectedAgeGroups)),
-    //   syndromes: Array.from(get(selectedSyndromes))
-    // });
-
-    // Use cached data if available and not forcing reload
-    if (dataCache && !forceReload) {
-      console.log('Using cached data');
-      pointsData.set(dataCache);
-      isLoading.set(false);
-      return;
-    }
-
-    // console.log('Fetching fresh data from:', url);
-
     // Add cache busting to the URL
     const cacheBuster = url.includes('?') ? `&t=${Date.now()}` : `?t=${Date.now()}`;
     const fetchUrl = url + cacheBuster;
-    
+
     // console.log('Fetching from URL:', fetchUrl);
-    const response = await fetch(fetchUrl);
+    const response = await fetch(fetchUrl, { signal });
     // console.log('Response status:', response.status, response.ok);
     if (!response.ok) {
       throw new Error(`Failed to fetch data: ${response.statusText}`);
@@ -112,6 +112,8 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
 
       // Convert to GeoJSON (this also builds indices)
       const geoData = convertCsvToGeoJson(result.data as PointDataRow[]);
+      // Clear stale filter cache before updating data so old indices aren't served
+      clearFilterCache();
       pointsData.set(geoData);
       dataCache = geoData; // Cache the data
 
@@ -199,15 +201,15 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
         throw new Error('Failed to parse valid data from CSV file');
       }
 
+      // Check if Campylobacter (without spp.) exists in the data BEFORE adding synthetic entries
+      const hasCampylobacter = Array.from(pathogenSet).some(p =>
+        p.toLowerCase().includes('campylobacter') && p !== 'Campylobacter spp.');
+
       // Ensure Shigella and Campylobacter are always available as pathogen options
       // since we have raster layers for them
       // Use the same format as in the data (with __ markers for italics)
       pathogenSet.add('__Shigella__');
       pathogenSet.add('__Campylobacter__');
-
-      // Check if Campylobacter (without spp.) exists in the data
-      const hasCampylobacter = Array.from(pathogenSet).some(p =>
-        p.toLowerCase().includes('campylobacter') && p !== 'Campylobacter spp.');
 
       // console.log('Campylobacter check:', {
       //   hasCampylobacter,
@@ -315,8 +317,10 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
       dataError.set('No data found in CSV file');
     }
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      return; // Superseded by a newer fetch — silently ignore
+    }
     console.error('Error loading point data:', error);
-    console.error('Full error details:', error);
     if (error instanceof Error) {
       console.error('Error stack:', error.stack);
     }

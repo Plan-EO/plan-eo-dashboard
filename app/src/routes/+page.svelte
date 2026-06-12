@@ -1,9 +1,11 @@
 <script>
 	import Map from '$lib/components/Map/Map.svelte';
-	import { selectedMapStyle } from '$lib/stores/mapStyle.store';
+	import { page } from '$app/stores';
+	import { browser } from '$app/environment';
+
+	let isEmbedded = $derived(browser && $page.url.searchParams.get('embed') === 'true');
 </script>
 
-<!-- Fix the height to ensure map is properly sized -->
-<div class=" -mt-[80px]">
+<div class={isEmbedded ? 'h-full w-full' : '-mt-[80px]'}>
 	<Map />
 </div>

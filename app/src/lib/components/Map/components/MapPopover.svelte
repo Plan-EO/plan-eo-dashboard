@@ -16,7 +16,8 @@
 
 	// Local popup instance
 	let popup: maplibregl.Popup | null = null;
-	let overlayElement: any = null; // Store the click handler function
+	let overlayElement: any = null;
+	let clickMarker: maplibregl.Marker | null = null;
 
 	// Create or update popup when data changes
 	$: if (map && coordinates && properties && visible) {
@@ -26,18 +27,26 @@
 	}
 
 	function showPopup() {
-		// Remove existing popup if any
 		cleanup();
 
 		if (!map || !coordinates || !properties) return;
 
-		// Create overlay element
 		createOverlay();
 
-		// Create new popup with enhanced styling
+		// Place a small dot at the click location so it stays visible when the popup is moved
+		if (properties.layerType) {
+			const dotEl = document.createElement('div');
+			dotEl.style.cssText =
+				'width:10px;height:10px;border-radius:50%;background:#ef4444;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.5);pointer-events:none;';
+			clickMarker = new maplibregl.Marker({ element: dotEl })
+				.setLngLat(coordinates)
+				.addTo(map);
+		}
+
+		// Create new popup
 		popup = new maplibregl.Popup({
 			closeButton: true,
-			closeOnClick: false, // We'll handle clicks with our overlay
+			closeOnClick: false,
 			maxWidth: '360px',
 			className: 'study-point-popup',
 			offset: 12
@@ -46,12 +55,80 @@
 			.setHTML(createPopupContent(properties))
 			.addTo(map);
 
-		// Handle popup close event (only when closed by close button)
+		// Make popup draggable after it is rendered
+		requestAnimationFrame(() => {
+			if (popup) makePopupDraggable(popup);
+		});
+
 		popup.on('close', () => {
 			cleanup();
 			visible = false;
 			dispatch('close');
 		});
+	}
+
+	function makePopupDraggable(p: maplibregl.Popup) {
+		const el = p.getElement();
+		if (!el) return;
+
+		const content = el.querySelector('.maplibregl-popup-content') as HTMLElement | null;
+		if (!content) return;
+
+		content.style.cursor = 'grab';
+
+		let dragging = false;
+		let detached = false;
+		let startMouseX = 0, startMouseY = 0;
+		let startElX = 0, startElY = 0;
+
+		const onMouseDown = (e: MouseEvent) => {
+			if ((e.target as HTMLElement).closest('.maplibregl-popup-close-button')) return;
+			e.preventDefault();
+			e.stopPropagation();
+			dragging = true;
+			content!.style.cursor = 'grabbing';
+
+			if (!detached) {
+				// Freeze the popup in screen space on first drag
+				const rect = el.getBoundingClientRect();
+				el.style.position = 'fixed';
+				el.style.left = `${rect.left}px`;
+				el.style.top = `${rect.top}px`;
+				el.style.transform = 'none';
+				el.style.margin = '0';
+				el.style.zIndex = '10000';
+				// Hide the directional tip since the popup is now floating freely
+				const tip = el.querySelector('.maplibregl-popup-tip') as HTMLElement | null;
+				if (tip) tip.style.display = 'none';
+				detached = true;
+			}
+
+			startMouseX = e.clientX;
+			startMouseY = e.clientY;
+			startElX = parseFloat(el.style.left) || 0;
+			startElY = parseFloat(el.style.top) || 0;
+		};
+
+		const onMouseMove = (e: MouseEvent) => {
+			if (!dragging) return;
+			el.style.left = `${startElX + e.clientX - startMouseX}px`;
+			el.style.top = `${startElY + e.clientY - startMouseY}px`;
+		};
+
+		const onMouseUp = () => {
+			dragging = false;
+			if (content) content.style.cursor = 'grab';
+		};
+
+		content.addEventListener('mousedown', onMouseDown);
+		document.addEventListener('mousemove', onMouseMove);
+		document.addEventListener('mouseup', onMouseUp);
+
+		(p as any)._dragCleanup = () => {
+			content!.removeEventListener('mousedown', onMouseDown);
+			document.removeEventListener('mousemove', onMouseMove);
+			document.removeEventListener('mouseup', onMouseUp);
+		};
 	}
 
 	function createOverlay() {
@@ -94,11 +171,16 @@
 
 	function cleanup() {
 		if (popup) {
+			(popup as any)._dragCleanup?.();
 			popup.remove();
 			popup = null;
 		}
-		if (overlayElement && (overlayElement as any).handleDocumentClick) {
-			document.removeEventListener('click', (overlayElement as any).handleDocumentClick);
+		if (clickMarker) {
+			clickMarker.remove();
+			clickMarker = null;
+		}
+		if (overlayElement?.handleDocumentClick) {
+			document.removeEventListener('click', overlayElement.handleDocumentClick);
 			overlayElement = null;
 		}
 	}
@@ -137,6 +219,10 @@
 				props.hyperlink.trim() !== '#'
 		);
 
+		const colorBar = props.layerType
+			? createColorBarHTML(props.rescaleMin ?? 0, props.rescaleMax ?? 11)
+			: '';
+
 		return `
       <div class="popup-content">
         <h3 class="popup-title">
@@ -147,10 +233,11 @@
         ${subtitle && subtitle.trim() ? `<div class="popup-subtitle">${subtitle}</div>` : ''}
 
         <div class="popup-section">
+          ${props.layerType !== 'Risk Factor' ? `
           <div class="info-row">
             <div class="info-label">Pathogen:</div>
             <div class="info-value">${pathogenFormatted}</div>
-          </div>
+          </div>` : ''}
 					<div class="info-row">
 						<div class="info-label">Prevalence (%):</div>
             <div class="info-value">
@@ -159,6 +246,8 @@
               </span>
             </div>
           </div>
+          ${colorBar}
+          ${props.layerType !== 'Risk Factor' ? `
           <div class="info-row">
             <div class="info-label">Age Range:</div>
             <div class="info-value">${formatDropdownText(props.ageRange)}</div>
@@ -166,7 +255,7 @@
           <div class="info-row">
             <div class="info-label">Syndrome:</div>
             <div class="info-value">${formatDropdownText(props.syndrome)}</div>
-          </div>
+          </div>` : ''}
           <div class="info-row">
             <div class="info-label">Location:</div>
             <div class="info-value">${formatItalicText(props.location)}</div>
@@ -213,6 +302,40 @@
 				}
       </div>
     `;
+	}
+
+	// Build inline viridis color bar HTML for raster popups
+	function createColorBarHTML(minVal: number, maxVal: number): string {
+		const stops = [
+			[0,    'rgb(68,1,84)'],
+			[0.11, 'rgb(72,40,120)'],
+			[0.22, 'rgb(62,73,137)'],
+			[0.33, 'rgb(49,104,142)'],
+			[0.44, 'rgb(38,130,142)'],
+			[0.55, 'rgb(31,158,137)'],
+			[0.66, 'rgb(53,183,121)'],
+			[0.77, 'rgb(109,205,89)'],
+			[0.88, 'rgb(180,222,44)'],
+			[1,    'rgb(253,231,37)']
+		] as [number, string][];
+
+		const gradient = stops.map(([s, c]) => `${c} ${s * 100}%`).join(', ');
+
+		const numTicks = 5;
+		const ticksHTML = Array.from({ length: numTicks }, (_, i) => {
+			const frac = i / (numTicks - 1);
+			const val = Math.round((minVal + (maxVal - minVal) * frac) * 10) / 10;
+			return `<div style="position:absolute;left:${frac * 100}%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;">
+				<div style="width:1px;height:5px;background:#888;"></div>
+				<div style="font-size:10px;color:#666;white-space:nowrap;margin-top:1px;">${val}%</div>
+			</div>`;
+		}).join('');
+
+		return `
+			<div style="margin-top:12px;padding-bottom:10px;border-bottom:1px solid #eee;margin-bottom:8px;">
+				<div style="height:14px;border-radius:3px;border:1px solid #ddd;background:linear-gradient(to right,${gradient});"></div>
+				<div style="position:relative;height:22px;margin-top:2px;">${ticksHTML}</div>
+			</div>`;
 	}
 
 	// Helper function to get color based on prevalence value

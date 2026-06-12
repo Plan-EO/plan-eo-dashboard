@@ -150,6 +150,18 @@ export function syncRasterLayers(
 
             currentMapLayers.add(layerId); // Track the added layer
 
+            // Immediately move data point layers to the top so they're never covered by rasters
+            const dataPointLayerIds = [
+              'points-layer',
+              'pie-charts',
+              'pie-charts-large',
+              'pie-charts-medium',
+              'pie-charts-small'
+            ];
+            dataPointLayerIds.forEach(id => {
+              if (currentMap?.getLayer(id)) currentMap?.moveLayer(id);
+            });
+
             // Call the onLayerAdded callback if provided
             if (onLayerAdded) {
               onLayerAdded();

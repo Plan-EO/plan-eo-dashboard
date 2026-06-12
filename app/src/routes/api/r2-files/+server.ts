@@ -22,61 +22,33 @@ export const GET: RequestHandler = async () => {
       // Manifest doesn't exist, fall back to checking dates
     }
     
-    // Generate dates for the last 60 days to check
-    const datesToCheck: string[] = [];
+    // Check the last 14 days sequentially, stopping at the first found file.
+    // Sequential + early-exit avoids hammering R2 with many concurrent HEAD requests.
     const today = new Date();
-    
-    for (let i = 0; i <= 60; i++) {
+    let latestFile: { date: string; fileName: string; url: string } | null = null;
+
+    for (let i = 0; i <= 14; i++) {
       const checkDate = new Date(today);
       checkDate.setDate(checkDate.getDate() - i);
       const dateStr = checkDate.toISOString().split('T')[0];
-      datesToCheck.push(dateStr);
-    }
-    
-    // Check files in batches to avoid too many concurrent requests
-    const existingFiles: any[] = [];
-    const batchSize = 10;
-    
-    for (let i = 0; i < datesToCheck.length; i += batchSize) {
-      const batch = datesToCheck.slice(i, i + batchSize);
-      
-      const batchChecks = batch.map(async (date) => {
-        const fileName = `${date}_Plan-EO_Dashboard_point_data.csv`;
-        const fileUrl = `${R2_BASE_URL}/${fileName}`;
-        
-        try {
-          // Use HEAD request to check if file exists without downloading it
-          const response = await fetch(fileUrl, { method: 'HEAD' });
-          if (response.ok) {
-            return { date, fileName, url: fileUrl };
-          }
-        } catch {
-          // File doesn't exist
+      const fileName = `${dateStr}_Plan-EO_Dashboard_point_data.csv`;
+      const fileUrl = `${R2_BASE_URL}/${fileName}`;
+
+      try {
+        const response = await fetch(fileUrl, { method: 'HEAD' });
+        if (response.ok) {
+          latestFile = { date: dateStr, fileName, url: fileUrl };
+          break; // Stop at the most recent file found
         }
-        return null;
-      });
-      
-      const results = await Promise.all(batchChecks);
-      const validResults = results.filter(Boolean);
-      existingFiles.push(...validResults);
-      
-      // Stop checking once we find at least 3 files or have checked recent dates
-      if (existingFiles.length >= 3 || i >= 30) {
-        break;
+      } catch {
+        // File doesn't exist for this date, continue
       }
     }
-    
-    // Sort by date (newest first) - using proper date comparison
-    existingFiles.sort((a, b) => {
-      const dateA = new Date(a.date);
-      const dateB = new Date(b.date);
-      return dateB.getTime() - dateA.getTime();
-    });
-    
-    if (existingFiles.length > 0) {
-      console.log(`Found ${existingFiles.length} files in R2. Latest: ${existingFiles[0]?.fileName}`);
+
+    if (latestFile) {
+      console.log(`Found latest R2 file: ${latestFile.fileName}`);
       return json({
-        files: existingFiles,
+        files: [latestFile],
         source: 'detected',
         lastChecked: new Date().toISOString()
       }, {

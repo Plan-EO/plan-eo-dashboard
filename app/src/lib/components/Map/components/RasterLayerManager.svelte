@@ -54,12 +54,10 @@
 		let needsReordering = false;
 		const layersToCheck = [
 			'country-boundaries-layer',
-			'heatmap-layer', 
-			'3d-bars-layer',
 			'points-layer',
 			'pie-charts',
 			'pie-charts-large',
-			'pie-charts-medium', 
+			'pie-charts-medium',
 			'pie-charts-small'
 		];
 		
@@ -86,16 +84,6 @@
 			
 			// Then move all possible data visualization layers to top
 			// The order matters - last moved will be on top
-			
-			// Heatmap layer (should be below dots/pies if they exist)
-			if (map.getLayer('heatmap-layer')) {
-				map.moveLayer('heatmap-layer');
-			}
-			
-			// 3D bars layer
-			if (map.getLayer('3d-bars-layer')) {
-				map.moveLayer('3d-bars-layer');
-			}
 			
 			// Dots layer
 			if (map.getLayer('points-layer')) {

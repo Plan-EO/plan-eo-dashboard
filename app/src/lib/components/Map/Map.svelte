@@ -19,6 +19,8 @@
 		selectedPathogens,
 		selectedAgeGroups,
 		selectedSyndromes,
+		ageGroupValToLab,
+		syndromeValToLab,
 		clearFilterCache,
 		pointsAddedToMap
 	} from './store';
@@ -40,7 +42,7 @@
 	import MapControls from './components/MapControls.svelte';
 	import RasterLayerManager from './components/RasterLayerManager.svelte';
 	import MapLayer from './components/MapLayer.svelte';
-	import MapSidebar from './components/MapSidebar.svelte';
+	import LayerManager from './components/LayerManager.svelte';
 	import MapPopover from './components/MapPopover.svelte';
 	import MapLegend from './components/MapLegend.svelte';
 	import MultiPointPopover from './components/MultiPointPopover.svelte';
@@ -119,12 +121,10 @@
 			const v = getRasterValueAtCoordinateFast(visibleRasterLayer, coords[0], coords[1]);
 			pointer = v !== null && isFinite(v as number);
 		} else {
-			// 2) Check interactive vector layers (points, pies, 3D bars, heatmap)
+			// 2) Check interactive vector layers (points, pies)
 			const layersToCheck: string[] = [];
 			if (map.getLayer('points-layer')) layersToCheck.push('points-layer');
 			if (map.getLayer('pie-charts')) layersToCheck.push('pie-charts');
-			if (map.getLayer('3d-bars-layer')) layersToCheck.push('3d-bars-layer');
-			// Note: heatmap is not treated as interactive for cursor style
 
 			if (layersToCheck.length) {
 				const featuresAtPoint = map.queryRenderedFeatures([event.point.x, event.point.y], {
@@ -511,8 +511,19 @@
 				} else if (metadata.type === 'Risk Factor') {
 					heading = metadata.study || `${metadata.variableName} Coverage`;
 					subheading = metadata.definition || 'Predicted coverage';
-					// For risk factors, use variable name as pathogen field
-					pathogen = metadata.variableName || pathogen;
+					// For risk factors, show the currently selected pathogen from the
+					// user's filter selection rather than the layer's variable name.
+					pathogen = Array.from($selectedPathogens)[0] || 'None Selected';
+					// Use the selected age group label, falling back to 'None Selected'.
+					const selectedAgeVal = Array.from($selectedAgeGroups)[0];
+					ageGroup = selectedAgeVal
+						? ($ageGroupValToLab.get(selectedAgeVal) || selectedAgeVal)
+						: 'None Selected';
+					// Use the selected syndrome label, falling back to 'None Selected'.
+					const selectedSynVal = Array.from($selectedSyndromes)[0];
+					syndrome = selectedSynVal
+						? ($syndromeValToLab.get(selectedSynVal) || selectedSynVal)
+						: 'None Selected';
 				}
 				
 				// Use metadata for source and link
@@ -550,9 +561,12 @@
 				design: design,
 				source: studySource,
 				hyperlink: studyLink,
-				footnote: metadata 
+				footnote: metadata
 					? `${metadata.indicator || 'Value'} from "${layerName}" at ${formattedLng}°, ${formattedLat}°.`
-					: `Exact prevalence value from raster layer "${layerName}" at coordinates ${formattedLng}°, ${formattedLat}°.`
+					: `Exact prevalence value from raster layer "${layerName}" at coordinates ${formattedLng}°, ${formattedLat}°.`,
+				layerType: metadata?.type,
+				rescaleMin: visibleRasterLayer.rescale?.[0] ?? 0,
+				rescaleMax: visibleRasterLayer.rescale?.[1] ?? 11
 			};
 
 			popoverCoordinates = clickCoordinates;
@@ -596,21 +610,6 @@
 		showPopover = true;
 	}
 
-	function handleOpacityChange(event: CustomEvent<{ opacity: number }>) {
-		globalOpacity = event.detail.opacity;
-		if (map) {
-			serializeFiltersToUrl(map, globalOpacity);
-		}
-	}
-
-	function handleVisualizationChange(
-		event: CustomEvent<{ visualizationType: VisualizationType; timestamp: number }>
-	) {
-		const { visualizationType: newType } = event.detail;
-		console.log(`Map received visualization change event: ${newType}`);
-		// Visualization changes are now handled centrally by the store
-		// The store watches for visualizationType changes and updates accordingly
-	}
 
 	onMount(async () => {
 		// Register this component's ensureLayerOrder function globally for access from stores
@@ -718,17 +717,10 @@
 		<MapLayer {map} on:pointclick={handlePointClick} />
 	{/if}
 
-	<div class="absolute left-6 top-16 z-10">
-		<MapSidebar
-			class="hidden sm:block"
-			bind:globalOpacity
-			on:opacitychange={handleOpacityChange}
-			on:visualizationchange={handleVisualizationChange}
-			on:overlaytoggle={(e) => {
-				showRasterDataOverlay = e.detail.visible;
-			}}
-		/>
+	<div class="absolute left-6 top-16 z-10 hidden sm:block">
+		<LayerManager />
 	</div>
+
 
 	{#if map && popoverCoordinates}
 		{#if showMultiPointPopover && multiPointFeatures.length > 0}
@@ -759,9 +751,7 @@
 		<MapLegend visible={true} />
 	{/if}
 
-	{#if map && isStyleLoaded}
-		<RasterLegend visible={true} />
-	{/if}
+	<!-- RasterLegend moved into MapPopover — shown at bottom of raster click popup -->
 
 	<!-- Raster Data Overlay - shows red pixels for all raster data -->
 	{#if map && isStyleLoaded}

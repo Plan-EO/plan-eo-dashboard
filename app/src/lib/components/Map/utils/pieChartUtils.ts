@@ -365,10 +365,13 @@ export function getDefaultColor(): string {
 /**
  * Create a single pie chart layer with dynamic sorting to ensure smaller pies appear on top
  */
-export function createSinglePieChartLayer(map: MaplibreMap, filteredPointsData: FeatureCollection<Point>): void {
+export function createSinglePieChartLayer(
+  map: MaplibreMap,
+  filteredPointsData: FeatureCollection<Point>,
+  visibility: 'visible' | 'none' = 'visible'
+): void {
   if (!map) return;
 
-  // Add single pie chart layer with symbol-sort-key for proper z-ordering
   map.addLayer({
     id: 'pie-charts',
     type: 'symbol',
@@ -378,8 +381,8 @@ export function createSinglePieChartLayer(map: MaplibreMap, filteredPointsData: 
       'icon-size': 1,
       'icon-allow-overlap': true,
       'icon-ignore-placement': true,
-      // Sort by samples - multiply by -1 so smaller samples (smaller pies) render on top
-      'symbol-sort-key': ['*', -1, ['get', 'samples']]
+      'symbol-sort-key': ['*', -1, ['get', 'samples']],
+      'visibility': visibility
     }
   });
 }

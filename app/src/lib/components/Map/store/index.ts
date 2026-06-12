@@ -35,6 +35,7 @@ export {
   rasterLayers,
   addRasterLayerFromUrl,
   updateRasterLayerVisibility,
+  updateRasterLayerIsActive,
   updateRasterLayerOpacity,
   updateAllRasterLayersOpacity,
   removeRasterLayer,
@@ -45,6 +46,7 @@ export {
 export {
   autoVisibleRasterLayers,
   initFilterRasterConnection,
+  rasterVisualizationEnabled,
   filterToRasterMappings,
   loadFilterRasterMappings
 } from './filterRasterMapping';
@@ -80,7 +82,8 @@ export {
   isAdjustingLayerOrder,
   setMapInstance,
   setPointsAddedToMap,
-  setMapReady
+  setMapReady,
+  handleFilterChange
 } from '$lib/stores/mapState.store';
 
 // Re-export map visualization functions

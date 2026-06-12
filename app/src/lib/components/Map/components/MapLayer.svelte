@@ -155,17 +155,6 @@
 			map.on('mouseleave', 'pie-charts', handleMouseLeave);
 		}
 
-		// Add event handlers for 3D bars
-		if (map.getLayer('3d-bars-layer')) {
-			map.on('click', '3d-bars-layer', handlePointClick);
-			map.on('mouseenter', '3d-bars-layer', handleMouseEnter);
-			map.on('mouseleave', '3d-bars-layer', handleMouseLeave);
-		}
-
-		// Add event handler for heatmap clicks only (no pointer change on hover)
-		if (map.getLayer('heatmap-layer')) {
-			map.on('click', 'heatmap-layer', handlePointClick);
-		}
 	}
 
 	// Remove event handlers
@@ -185,17 +174,6 @@
 			map.off('mouseleave', 'pie-charts', handleMouseLeave);
 		}
 
-		// Remove event handlers for 3D bars
-		if (map.getLayer('3d-bars-layer')) {
-			map.off('click', '3d-bars-layer', handlePointClick);
-			map.off('mouseenter', '3d-bars-layer', handleMouseEnter);
-			map.off('mouseleave', '3d-bars-layer', handleMouseLeave);
-		}
-
-		// Remove event handler for heatmap
-		if (map.getLayer('heatmap-layer')) {
-			map.off('click', 'heatmap-layer', handlePointClick);
-		}
 	}
 
 	// Track the last visualization type to detect changes
@@ -213,10 +191,8 @@
 			// Check if any of our visualization layers exist
 			const hasPointsLayer = map.getLayer('points-layer');
 			const hasPieChartLayers = map.getLayer('pie-charts');
-			const has3DBarsLayer = map.getLayer('3d-bars-layer');
-			const hasHeatmapLayer = map.getLayer('heatmap-layer');
 
-			if (hasPointsLayer || hasPieChartLayers || has3DBarsLayer || hasHeatmapLayer) {
+			if (hasPointsLayer || hasPieChartLayers) {
 				// Wait for map to be idle after visualization change
 				console.log('Waiting for idle state to re-attach event handlers');
 				map.once('idle', () => {

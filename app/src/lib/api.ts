@@ -26,6 +26,6 @@ export async function sendEmail(subject: string, content: string): Promise<{ suc
     return { success: true, message: 'Recieved loud and clear\n Thanks for your feedback!' };
   } catch (error) {
     console.error('Error sending email:', error);
-    return { success: false, message: error.message || 'Failed to send feedback' };
+    return { success: false, message: error instanceof Error ? error.message : 'Failed to send feedback' };
   }
 }
