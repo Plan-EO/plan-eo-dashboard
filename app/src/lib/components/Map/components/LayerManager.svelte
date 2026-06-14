@@ -24,12 +24,14 @@
 		applyDataPointsVisibility,
 		dataPointsVisible as dataPointsVisibleStore,
 		pointsAddedToMap,
-		initFilterRasterConnection
+		initFilterRasterConnection,
+		loadRasterLayersFromConfig,
+		loadFilterRasterMappings
 	} from '../store';
 	import { visualizationOptions } from '../store/visualizationOptions';
 	import { formatDropdownText } from '../utils/textFormatter';
 	import type { VisualizationType } from '../store';
-	import { onDestroy } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 
 	// Panel state
@@ -47,18 +49,18 @@
 			id: 'housing',
 			label: 'Housing Material',
 			layers: [
-				{ storeName: 'Floor Finished Pr', display: 'Finished Floors' },
-				{ storeName: 'Roofs Finished Pr', display: 'Finished Roof' },
-				{ storeName: 'Walls Finished Pr', display: 'Finished Walls' }
+				{ storeName: 'Floor Finished – Coverage', display: 'Finished Floors' },
+				{ storeName: 'Roofs Finished – Coverage', display: 'Finished Roof' },
+				{ storeName: 'Walls Finished – Coverage', display: 'Finished Walls' }
 			]
 		},
 		{
 			id: 'livestock',
 			label: 'Livestock',
 			layers: [
-				{ storeName: 'Poultry Pr', display: 'Poultry' },
-				{ storeName: 'Ruminant Pr', display: 'Ruminant' },
-				{ storeName: 'Swine Pr', display: 'Swine' }
+				{ storeName: 'Poultry Ownership – Coverage', display: 'Poultry' },
+				{ storeName: 'Ruminant Ownership – Coverage', display: 'Ruminant' },
+				{ storeName: 'Swine Ownership – Coverage', display: 'Swine' }
 			]
 		},
 		{
@@ -82,6 +84,13 @@
 	let lmVisualizationType: VisualizationType = 'pie-charts';
 	let dataPointsToggled = true;
 	let rasterToggled = false;
+
+	// Load raster layer config and filter→raster mappings at startup
+	// (rasterLayers/filterToRasterMappings stores start empty until this resolves)
+	onMount(() => {
+		loadRasterLayersFromConfig();
+		loadFilterRasterMappings();
+	});
 
 	// Take ownership of display state on startup
 	let _mapInitialized = false;

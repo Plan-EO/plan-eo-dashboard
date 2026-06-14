@@ -34,6 +34,7 @@ export {
 export {
   rasterLayers,
   addRasterLayerFromUrl,
+  loadRasterLayersFromConfig,
   updateRasterLayerVisibility,
   updateRasterLayerIsActive,
   updateRasterLayerOpacity,

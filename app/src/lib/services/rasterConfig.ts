@@ -1,4 +1,5 @@
 import type { RasterLayerMetadata } from '$lib/types';
+import fallbackRasterConfig from '$lib/data/raster-layers-fallback.json';
 
 export interface RasterLayerConfig {
   name: string;
@@ -23,36 +24,56 @@ export interface RasterConfig {
   layers: RasterLayerConfig[];
 }
 
-const baseRasterUrl = import.meta.env.VITE_RASTER_BASE_URL || 'https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev/cogs/';
+// Public R2 bucket that mirrors the COG layout (01_Pathogens/, 02_Risk_factors/, ...)
+// Used both as the default base URL and as the fallback when the primary source is unreachable.
+const R2_COGS_URL = 'https://pub-6e8836a7d8be4fd1adc1317bb416ad75.r2.dev/cogs/';
+
+// Primary source: Research Computing storage in production (VITE_RASTER_BASE_URL=/data/cogs/),
+// or R2 by default for local dev.
+const primaryRasterUrl = import.meta.env.VITE_RASTER_BASE_URL || R2_COGS_URL;
 
 let cachedConfig: RasterConfig | null = null;
+
+// Base URL actually used to build layer source URLs, set once loadRasterConfig() resolves.
+let activeBaseUrl = primaryRasterUrl;
+
+/** Test-only helper to clear the cached config between test cases. */
+export function __resetRasterConfigCache(): void {
+  cachedConfig = null;
+  activeBaseUrl = primaryRasterUrl;
+}
 
 /**
  * Fetch and parse raster-layers.json from the data directory.
  * Returns cached result on subsequent calls within the same page load.
+ *
+ * If the primary source (e.g. RC storage mounted at /data/cogs/) doesn't have
+ * raster-layers.json, falls back to a bundled copy of the config and serves the
+ * actual .tif files from the public R2 bucket instead.
  */
 export async function loadRasterConfig(): Promise<RasterConfig> {
   if (cachedConfig) return cachedConfig;
 
   try {
-    const response = await fetch(`${baseRasterUrl}raster-layers.json`);
-    if (!response.ok) {
-      console.warn(`Failed to load raster-layers.json (${response.status}). No raster layers will be available.`);
-      cachedConfig = { layers: [] };
-      return cachedConfig;
+    const response = await fetch(`${primaryRasterUrl}raster-layers.json`);
+    if (response.ok) {
+      activeBaseUrl = primaryRasterUrl;
+      cachedConfig = await response.json();
+      return cachedConfig!;
     }
-    cachedConfig = await response.json();
-    return cachedConfig!;
+    console.warn(`Failed to load raster-layers.json from ${primaryRasterUrl} (${response.status}). Falling back to bundled config + R2-hosted rasters.`);
   } catch (err) {
-    console.warn('Could not fetch raster-layers.json:', err);
-    cachedConfig = { layers: [] };
-    return cachedConfig;
+    console.warn(`Could not fetch raster-layers.json from ${primaryRasterUrl}:`, err);
   }
+
+  activeBaseUrl = R2_COGS_URL;
+  cachedConfig = fallbackRasterConfig as RasterConfig;
+  return cachedConfig;
 }
 
 /** Build a full source URL from a layer's relative path */
 export function getLayerSourceUrl(layerPath: string): string {
-  return `${baseRasterUrl}${layerPath}`;
+  return `${activeBaseUrl}${layerPath}`;
 }
 
 /** Generate a stable layer ID from a layer's relative path */
