@@ -29,7 +29,7 @@
 		loadFilterRasterMappings
 	} from '../store';
 	import { visualizationOptions } from '../store/visualizationOptions';
-	import { formatDropdownText } from '../utils/textFormatter';
+	import { formatDropdownText, parseIndentationPrefix } from '../utils/textFormatter';
 	import type { VisualizationType } from '../store';
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -64,16 +64,45 @@
 			]
 		},
 		{
-			id: 'wash',
-			label: 'WASH',
-			comingSoon: true,
+			id: 'water-source',
+			label: 'Water Source',
 			layers: [
-				{ storeName: '', display: 'Hygiene' },
-				{ storeName: '', display: 'Sanitation' },
-				{ storeName: '', display: 'Water' }
+				{ storeName: 'ImpW_Pipe_Pr', display: 'Improved: Piped' },
+				{ storeName: 'ImpW_Grd_Pr', display: 'Improved: Groundwater' },
+				{ storeName: 'ImpW_Oth_Pr', display: 'Improved: Other' },
+				{ storeName: 'UnimpW_Srf_Pr', display: 'Unimproved: Surface water' },
+				{ storeName: 'UnimpW_Oth_Pr', display: 'Unimproved: Other' }
+			]
+		},
+		{
+			id: 'sanitation-facility',
+			label: 'Sanitation Facility',
+			layers: [
+				{ storeName: 'ImpS_Sew_Pr', display: 'Improved: Sewer or septic tank' },
+				{ storeName: 'ImpS_Oth_Pr', display: 'Improved: Other' },
+				{ storeName: 'UnimpS_San_Pr', display: 'Unimproved: Other' },
+				{ storeName: 'Open_Def_Pr', display: 'Open defecation' }
+			]
+		},
+		{
+			id: 'hygiene-facility',
+			label: 'Hygiene Facility',
+			layers: [
+				{ storeName: 'Hwash_Bas_Pr', display: 'Basic' },
+				{ storeName: 'Hwash_Lim_Pr', display: 'Limited' },
+				{ storeName: 'Hwash_None_Pr', display: 'None' }
 			]
 		}
 	];
+
+	// Find the display label + subcategory name for a raster layer by its config `name`
+	function findLayerDef(layerName: string): { display: string; subtitle: string } | undefined {
+		for (const sub of rfSubcategories) {
+			const found = sub.layers.find((l) => l.storeName === layerName);
+			if (found) return { display: found.display, subtitle: sub.label };
+		}
+		return undefined;
+	}
 
 	// Active pathogen drives whether the config panel is shown
 	let activePathogen = '';
@@ -82,7 +111,7 @@
 	let lmAgeGroup = '';
 	let lmSyndrome = '';
 	let lmVisualizationType: VisualizationType = 'pie-charts';
-	let dataPointsToggled = true;
+	let dataPointsToggled = false;
 	let rasterToggled = false;
 
 	// Load raster layer config and filter→raster mappings at startup
@@ -146,14 +175,14 @@
 	};
 
 	$: activeLayers = [
-		...(layerAdded && activePathogen
+		...(layerAdded && dataPointsToggled && activePathogen
 			? ([{
 					id: 'pathogen-layer',
 					type: 'pathogen' as const,
 					displayName: formatDropdownText(activePathogen),
 					subtitle: [
-						lmAgeGroup && ($ageGroupValToLab.get(lmAgeGroup) || lmAgeGroup),
-						lmSyndrome && ($syndromeValToLab.get(lmSyndrome) || lmSyndrome)
+						lmAgeGroup && parseIndentationPrefix($ageGroupValToLab.get(lmAgeGroup) || lmAgeGroup).text,
+						lmSyndrome && parseIndentationPrefix($syndromeValToLab.get(lmSyndrome) || lmSyndrome).text
 					]
 						.filter(Boolean)
 						.join(' · ') || 'All ages / All syndromes',
@@ -164,13 +193,12 @@
 		...Array.from($rasterLayers.entries())
 			.filter(([_, l]) => l.isActive)
 			.map(([layerId, layer]) => {
-				const sub = rfSubcategories.find((s) => s.layers.some((l) => l.storeName === layer.name));
-				const layerDef = sub?.layers.find((l) => l.storeName === layer.name);
+				const layerDef = findLayerDef(layer.name);
 				return {
 					id: layerId,
 					type: 'raster' as const,
 					displayName: layerDef?.display || layer.name,
-					subtitle: sub?.label || 'Raster Layer',
+					subtitle: layerDef?.subtitle || 'Raster Layer',
 					onRemove: () => removeRFLayer(layer.name)
 				} satisfies ActiveLayer;
 			})
@@ -261,7 +289,7 @@
 		activePathogen = '';
 		lmAgeGroup = '';
 		lmSyndrome = '';
-		dataPointsToggled = true;
+		dataPointsToggled = false;
 		rasterToggled = false;
 		selectedPathogens.set(new Set());
 		selectedAgeGroups.set(new Set());
@@ -280,7 +308,7 @@
 		activePathogen = pathogen;
 		lmAgeGroup = '';
 		lmSyndrome = '';
-		dataPointsToggled = true;
+		dataPointsToggled = false;
 		rasterToggled = false;
 		lmVisualizationType = 'pie-charts';
 		visualizationType.set('pie-charts');
@@ -292,8 +320,8 @@
 	}
 
 	async function selectAgeGroup(val: string) {
-		// Changing age group after adding → require "Add Layer" again
-		if (layerAdded) { hideAll(); layerAdded = false; }
+		// Changing age group after adding → require explicit "+" click again
+		if (layerAdded) { hideAll(); layerAdded = false; dataPointsToggled = false; rasterToggled = false; }
 		lmAgeGroup = val;
 		lmSyndrome = '';
 		selectedAgeGroups.set(val ? new Set([val]) : new Set());
@@ -303,8 +331,8 @@
 	}
 
 	async function selectSyndrome(val: string) {
-		// Changing syndrome after adding → require "Add Layer" again
-		if (layerAdded) { hideAll(); layerAdded = false; }
+		// Changing syndrome after adding → require explicit "+" click again
+		if (layerAdded) { hideAll(); layerAdded = false; dataPointsToggled = false; rasterToggled = false; }
 		lmSyndrome = val;
 		selectedSyndromes.set(val ? new Set([val]) : new Set());
 		clearFilterCache();
@@ -333,38 +361,40 @@
 	}
 
 	function toggleDataPoints() {
-		dataPointsToggled = !dataPointsToggled;
-		if (layerAdded) {
-			dataPointsVisibleStore.set(dataPointsToggled);
-			applyDataPointsVisibility($mapInstance, dataPointsToggled);
+		const isActive = layerAdded && dataPointsToggled;
+		if (isActive) {
+			dataPointsToggled = false;
+			dataPointsVisibleStore.set(false);
+			applyDataPointsVisibility($mapInstance, false);
+			if (!rasterToggled) layerAdded = false;
+		} else {
+			dataPointsToggled = true;
+			layerAdded = true;
+			dataPointsVisibleStore.set(true);
+			applyDataPointsVisibility($mapInstance, true);
 		}
 	}
 
 	function toggleRaster() {
 		if (!hasRaster) return;
-		rasterToggled = !rasterToggled;
-		if (layerAdded) {
-			if (rasterToggled) {
-				showRasterLayers();
-			} else {
-				hideRasterLayers();
-			}
-		}
-	}
-
-	function addLayer() {
-		layerAdded = true;
-		dataPointsVisibleStore.set(dataPointsToggled);
-		applyDataPointsVisibility($mapInstance, dataPointsToggled);
-		if (rasterToggled && hasRaster) {
-			showRasterLayers();
-		} else {
+		const isActive = layerAdded && rasterToggled;
+		if (isActive) {
+			rasterToggled = false;
 			hideRasterLayers();
+			if (!dataPointsToggled) layerAdded = false;
+		} else {
+			rasterToggled = true;
+			layerAdded = true;
+			dataPointsVisibleStore.set(dataPointsToggled);
+			applyDataPointsVisibility($mapInstance, dataPointsToggled);
+			showRasterLayers();
 		}
 	}
 
 	function removeLayer() {
 		layerAdded = false;
+		dataPointsToggled = false;
+		rasterToggled = false;
 		hideRasterLayers();
 		dataPointsVisibleStore.set(false);
 		applyDataPointsVisibility($mapInstance, false);
@@ -515,7 +545,7 @@
 											onclick={() => toggleLayerDetail(layer.id)}
 											title="Show layer details"
 										>
-											<span class="text-xs font-medium leading-tight truncate flex-1">{layer.displayName}</span>
+											<span class="text-xs font-medium leading-tight truncate flex-1">{@html layer.displayName}</span>
 											<svg
 												xmlns="http://www.w3.org/2000/svg"
 												class="h-3 w-3 flex-shrink-0 text-base-content/40 transition-transform {expandedLayerDetails.has(layer.id) ? 'rotate-180' : ''}"
@@ -654,64 +684,56 @@
 		>
 			<!-- Header -->
 			<div class="border-b border-white/30 bg-white/40 px-4 py-3">
-				<h3 class="text-base-content text-sm font-semibold">Risk Factors / Interventions</h3>
+				<h3 class="text-sm font-semibold">Risk Factors / Interventions</h3>
 			</div>
 
 			<!-- Sub-categories (vertical accordion) -->
-			<div class="max-h-[calc(100vh-280px)] overflow-y-auto">
+			<div class="max-h-[calc(100vh-280px)] overflow-y-auto pb-4">
 				{#each rfSubcategories as sub}
 					{@const isOpen = rfOpenSubcategory === sub.id}
 
 					<!-- Sub-category header -->
 					<button
-						class="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm font-medium transition-colors {isOpen
+						class="flex w-full items-center justify-between pl-6 pr-4 py-2.5 text-left text-sm font-medium transition-colors {isOpen
 							? 'bg-warning/10 text-warning'
-							: 'hover:bg-white/60 text-base-content'} {sub.comingSoon ? 'opacity-50 cursor-not-allowed' : ''}"
-						onclick={() => !sub.comingSoon && toggleRFSubcategory(sub.id)}
-						disabled={sub.comingSoon}
+							: 'hover:bg-white/60 text-base-content'}"
+						onclick={() => toggleRFSubcategory(sub.id)}
 					>
 						<span class="flex items-center gap-2">
 							{sub.label}
-							{#if sub.comingSoon}
-								<span class="badge badge-ghost badge-xs">Soon</span>
-							{/if}
 						</span>
-						{#if !sub.comingSoon}
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								class="h-3.5 w-3.5 flex-shrink-0 transition-transform {isOpen ? 'rotate-180' : ''}"
-								fill="none" viewBox="0 0 24 24" stroke="currentColor"
-							>
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-							</svg>
-						{/if}
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="h-3.5 w-3.5 flex-shrink-0 transition-transform {isOpen ? 'rotate-180' : ''}"
+							fill="none" viewBox="0 0 24 24" stroke="currentColor"
+						>
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+						</svg>
 					</button>
 
 					<!-- Layer list (expands downward) -->
-					{#if isOpen}
+					{#if isOpen && sub.layers.length > 0}
 						<div class="border-warning/20 bg-warning/5 divide-white/40 divide-y border-t">
 							{#each sub.layers as layer}
 								{@const added = isRFLayerAdded(layer.storeName)}
-								<div class="flex items-start justify-between gap-2 py-2 pl-8 pr-4">
+								<div class="flex items-center justify-between gap-2 py-2 pl-10 pr-4">
 									<div class="flex flex-col">
 										<span class="text-base-content text-xs font-medium">{layer.display}</span>
 										<span class="text-base-content/50 text-xs italic">Raster Layer Description Here</span>
 									</div>
-									{#if added}
-										<button
-											class="btn btn-error btn-outline btn-xs whitespace-nowrap"
-											onclick={() => removeRFLayer(layer.storeName)}
-										>
-											Remove
-										</button>
-									{:else}
-										<button
-											class="btn btn-primary btn-xs whitespace-nowrap"
-											onclick={() => addRFLayer(layer.storeName)}
-										>
-											Add Layer
-										</button>
-									{/if}
+									<button
+										class="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-white transition-colors {added ? 'bg-error/80 hover:bg-error' : 'bg-secondary/80 hover:bg-secondary'}"
+										onclick={() => added ? removeRFLayer(layer.storeName) : addRFLayer(layer.storeName)}
+										title={added ? 'Remove layer' : 'Add layer'}
+									>
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+											{#if added}
+												<path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4" />
+											{:else}
+												<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+											{/if}
+										</svg>
+									</button>
 								</div>
 							{/each}
 						</div>
@@ -761,9 +783,8 @@
 					>
 						<option value="">Select age group</option>
 						{#each availableAgeGroups as val}
-							<option value={val}>
-								{($ageGroupValToLab.get(val) || val).replace('^^', '').trim()}
-							</option>
+							{@const { isIndented, text: ageLabel } = parseIndentationPrefix($ageGroupValToLab.get(val) || val)}
+							<option value={val}>{isIndented ? '    ' + ageLabel : ageLabel}</option>
 						{/each}
 					</select>
 				</div>
@@ -811,12 +832,19 @@
 									</svg>
 									Data Points
 								</span>
-								<input
-									type="checkbox"
-									class="checkbox checkbox-xs checkbox-secondary"
-									checked={dataPointsToggled}
-									onchange={toggleDataPoints}
-								/>
+								<button
+									class="flex h-5 w-5 items-center justify-center rounded-full text-white transition-colors {layerAdded && dataPointsToggled ? 'bg-error/80 hover:bg-error' : 'bg-secondary/80 hover:bg-secondary'}"
+									onclick={toggleDataPoints}
+									title={layerAdded && dataPointsToggled ? 'Remove data points' : 'Add data points'}
+								>
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+										{#if layerAdded && dataPointsToggled}
+											<path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4" />
+										{:else}
+											<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+										{/if}
+									</svg>
+								</button>
 							</div>
 							<!-- Pie Charts / Standard Dots sub-buttons -->
 							<div class="mt-1.5 flex justify-center gap-1">
@@ -841,41 +869,22 @@
 								</svg>
 								Raster Layer
 							</span>
-							<input
-								type="checkbox"
-								class="checkbox checkbox-xs checkbox-secondary"
-								checked={rasterToggled}
+							<button
+								class="flex h-5 w-5 items-center justify-center rounded-full text-white transition-colors {layerAdded && rasterToggled ? 'bg-error/80 hover:bg-error' : hasRaster ? 'bg-secondary/80 hover:bg-secondary' : 'cursor-not-allowed bg-base-300'}"
+								onclick={toggleRaster}
 								disabled={!hasRaster}
-								onchange={toggleRaster}
-							/>
+								title={!hasRaster ? 'No raster available' : layerAdded && rasterToggled ? 'Remove raster layer' : 'Add raster layer'}
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+									{#if layerAdded && rasterToggled}
+										<path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4" />
+									{:else}
+										<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+									{/if}
+								</svg>
+							</button>
 						</div>
 					</div>
-				</div>
-
-
-<!-- Add / Remove Layer button -->
-				<div class="border-white/40 border-t pt-3">
-					{#if layerAdded}
-						<button
-							class="btn btn-sm btn-error btn-outline w-full"
-							onclick={removeLayer}
-						>
-							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-							</svg>
-							Remove Layer
-						</button>
-					{:else}
-						<button
-							class="btn btn-primary btn-sm w-full"
-							onclick={addLayer}
-						>
-							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-							</svg>
-							Add Layer
-						</button>
-					{/if}
 				</div>
 
 			</div>
