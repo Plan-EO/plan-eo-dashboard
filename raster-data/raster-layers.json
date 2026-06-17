@@ -215,6 +215,126 @@
       "period": "2023",
       "study": "Colston et al. 2024, PLOS GPH",
       "hyperlink": "https://doi.org/10.1371/journal.pgph.0003338"
+    },
+    {
+      "name": "Hwash_Bas_Pr",
+      "path": "02_Risk_factors/Hygiene/Hwash_Bas_Pr.tif",
+      "type": "Risk Factor",
+      "category": "Hygiene Facility",
+      "indicator": "Coverage (%)",
+      "definition": "Predicted coverage of basic hygiene facilities",
+      "period": "2023",
+      "study": "Colston et al. 2024, PLOS GPH"
+    },
+    {
+      "name": "Hwash_Lim_Pr",
+      "path": "02_Risk_factors/Hygiene/Hwash_Lim_Pr.tif",
+      "type": "Risk Factor",
+      "category": "Hygiene Facility",
+      "indicator": "Coverage (%)",
+      "definition": "Predicted coverage of limited hygiene facilities",
+      "period": "2023",
+      "study": "Colston et al. 2024, PLOS GPH"
+    },
+    {
+      "name": "Hwash_None_Pr",
+      "path": "02_Risk_factors/Hygiene/Hwash_None_Pr.tif",
+      "type": "Risk Factor",
+      "category": "Hygiene Facility",
+      "indicator": "Coverage (%)",
+      "definition": "Predicted coverage of no hygiene facility",
+      "period": "2023",
+      "study": "Colston et al. 2024, PLOS GPH"
+    },
+    {
+      "name": "ImpS_Sew_Pr",
+      "path": "02_Risk_factors/Sanitation/ImpS_Sew_Pr.tif",
+      "type": "Risk Factor",
+      "category": "Sanitation Facility",
+      "indicator": "Coverage (%)",
+      "definition": "Predicted coverage of improved sanitation facilities connected to a sewer",
+      "period": "2023",
+      "study": "Colston et al. 2024, PLOS GPH"
+    },
+    {
+      "name": "ImpS_Oth_Pr",
+      "path": "02_Risk_factors/Sanitation/ImpS_Oth_Pr.tif",
+      "type": "Risk Factor",
+      "category": "Sanitation Facility",
+      "indicator": "Coverage (%)",
+      "definition": "Predicted coverage of other improved sanitation facilities",
+      "period": "2023",
+      "study": "Colston et al. 2024, PLOS GPH"
+    },
+    {
+      "name": "UnimpS_San_Pr",
+      "path": "02_Risk_factors/Sanitation/UnimpS_San_Pr.tif",
+      "type": "Risk Factor",
+      "category": "Sanitation Facility",
+      "indicator": "Coverage (%)",
+      "definition": "Predicted coverage of unimproved sanitation facilities",
+      "period": "2023",
+      "study": "Colston et al. 2024, PLOS GPH"
+    },
+    {
+      "name": "Open_Def_Pr",
+      "path": "02_Risk_factors/Sanitation/Open_Def_Pr.tif",
+      "type": "Risk Factor",
+      "category": "Sanitation Facility",
+      "indicator": "Coverage (%)",
+      "definition": "Predicted coverage of open defecation",
+      "period": "2023",
+      "study": "Colston et al. 2024, PLOS GPH"
+    },
+    {
+      "name": "ImpW_Pipe_Pr",
+      "path": "02_Risk_factors/Water/ImpW_Pipe_Pr.tif",
+      "type": "Risk Factor",
+      "category": "Water Source",
+      "indicator": "Coverage (%)",
+      "definition": "Predicted coverage of improved piped water sources",
+      "period": "2023",
+      "study": "Colston et al. 2024, PLOS GPH"
+    },
+    {
+      "name": "ImpW_Grd_Pr",
+      "path": "02_Risk_factors/Water/ImpW_Grd_Pr.tif",
+      "type": "Risk Factor",
+      "category": "Water Source",
+      "indicator": "Coverage (%)",
+      "definition": "Predicted coverage of improved groundwater sources",
+      "period": "2023",
+      "study": "Colston et al. 2024, PLOS GPH"
+    },
+    {
+      "name": "ImpW_Oth_Pr",
+      "path": "02_Risk_factors/Water/ImpW_Oth_Pr.tif",
+      "type": "Risk Factor",
+      "category": "Water Source",
+      "indicator": "Coverage (%)",
+      "definition": "Predicted coverage of other improved water sources",
+      "period": "2023",
+      "study": "Colston et al. 2024, PLOS GPH"
+    },
+    {
+      "name": "UnimpW_Srf_Pr",
+      "path": "02_Risk_factors/Water/UnimpW_Srf_Pr.tif",
+      "type": "Risk Factor",
+      "category": "Water Source",
+      "indicator": "Coverage (%)",
+      "definition": "Predicted coverage of unimproved surface water sources",
+      "period": "2023",
+      "study": "Colston et al. 2024, PLOS GPH"
+    },
+    {
+      "name": "UnimpW_Oth_Pr",
+      "path": "02_Risk_factors/Water/UnimpW_Oth_Pr.tif",
+      "type": "Risk Factor",
+      "category": "Water Source",
+      "indicator": "Coverage (%)",
+      "definition": "Predicted coverage of other unimproved water sources",
+      "period": "2023",
+      "study": "Colston et al. 2024, PLOS GPH"
     }
   ]
 }

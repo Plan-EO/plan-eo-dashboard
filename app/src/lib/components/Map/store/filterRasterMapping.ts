@@ -120,12 +120,14 @@ export function initFilterRasterConnection() {
       }
     });
 
-    // Activate newly matched layers; only show on map if the toggle is on
+    // Activate newly matched layers; only activate/show on map if the toggle is on
     $autoVisibleRasterLayers.forEach(layerId => {
       const layer = currentLayers.get(layerId);
       if (layer && !layer.autoShown) {
-        if (enabled) updateRasterLayerVisibility(layerId, true);
-        updateRasterLayerIsActive(layerId, true);
+        if (enabled) {
+          updateRasterLayerIsActive(layerId, true);
+          updateRasterLayerVisibility(layerId, true);
+        }
         rasterLayers.update(layers => {
           const l = layers.get(layerId);
           if (l) l.autoShown = true;
