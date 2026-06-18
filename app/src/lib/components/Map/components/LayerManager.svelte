@@ -464,9 +464,9 @@
 <div class="flex flex-row items-start gap-2">
 
 	<!-- ── Main Panel (leftmost, always visible) ── -->
-	<div class="{panelBase} transition-all duration-200 {activeLayersExpanded ? 'w-56' : 'w-44'}">
+	<div class="{panelBase} transition-all duration-200 {activeLayersExpanded ? 'w-48' : 'w-40'}">
 		<!-- Header -->
-		<div class="border-b border-white/30 bg-white/40 px-3 py-2">
+		<div class="border-b border-white/30 bg-white/40 px-2 py-1.5">
 			<div class="flex items-center justify-between">
 				<h2 class="text-base-content text-sm font-semibold">Layer Manager</h2>
 				<button
@@ -489,7 +489,7 @@
 			<div class="p-2 space-y-1">
 				<!-- Pathogens category -->
 				<button
-					class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors {pathogensExpanded
+					class="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm transition-colors {pathogensExpanded
 						? 'bg-warning/10 text-warning font-medium'
 						: 'hover:bg-white/60 text-base-content'}"
 					onclick={togglePathogens}
@@ -508,7 +508,7 @@
 
 				<!-- Risk Factors / Interventions -->
 				<button
-					class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors {riskFactorsExpanded
+					class="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm transition-colors {riskFactorsExpanded
 						? 'bg-warning/10 text-warning font-medium'
 						: 'hover:bg-white/60 text-base-content'}"
 					onclick={toggleRiskFactors}
@@ -526,7 +526,7 @@
 
 				<!-- Active Layers (accordion down) -->
 				<button
-					class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors {activeLayersExpanded
+					class="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm transition-colors {activeLayersExpanded
 						? 'bg-primary/10 text-primary font-medium'
 						: 'hover:bg-white/60 text-base-content'}"
 					onclick={toggleActiveLayers}
@@ -653,11 +653,11 @@
 	<!-- ── Pathogens Panel (appears to right of Main when Pathogens is expanded) ── -->
 	{#if pathogensExpanded && !collapsed}
 		<div
-			class="{panelBase} w-56"
+			class="{panelBase} w-48"
 			transition:fly={{ x: -40, duration: 220, opacity: 0 }}
 		>
 			<!-- Header -->
-			<div class="border-b border-white/30 bg-white/40 px-3 py-2">
+			<div class="border-b border-white/30 bg-white/40 px-2 py-1.5">
 				<h3 class="text-base-content text-sm font-semibold">Pathogens</h3>
 			</div>
 
@@ -667,7 +667,7 @@
 					{@const isActive = activePathogen === pathogen}
 					{@const count = $pathogenCounts.get(pathogen) || 0}
 					<button
-						class="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition-colors {isActive
+						class="flex w-full items-center justify-between px-2 py-1 text-left text-sm transition-colors {isActive
 							? 'bg-warning/10 text-warning font-medium'
 							: 'hover:bg-white/60 text-base-content'}"
 						onclick={() => activatePathogen(pathogen)}
@@ -697,12 +697,12 @@
 	<!-- ── Risk Factors Panel (appears to right of Main when Risk Factors is expanded) ── -->
 	{#if riskFactorsExpanded && !collapsed}
 		<div
-			class="{panelBase} w-52"
+			class="{panelBase} w-44"
 			transition:fly={{ x: -40, duration: 220, opacity: 0 }}
 		>
 			<!-- Header -->
-			<div class="border-b border-white/30 bg-white/40 px-3 py-2">
-				<h3 class="text-sm font-semibold">Risk Factors / Interventions</h3>
+			<div class="border-b border-white/30 bg-white/40 px-2 py-1.5">
+				<h3 class="text-sm font-semibold truncate">Risk Factors</h3>
 			</div>
 
 			<!-- Sub-categories (vertical accordion) -->
@@ -712,7 +712,7 @@
 
 					<!-- Sub-category header -->
 					<button
-						class="flex w-full items-center justify-between pl-5 pr-3 py-2 text-left text-sm font-medium transition-colors {isOpen
+						class="flex w-full items-center justify-between pl-4 pr-2 py-1.5 text-left text-sm font-medium transition-colors {isOpen
 							? 'bg-warning/10 text-warning'
 							: 'hover:bg-white/60 text-base-content'}"
 						onclick={() => toggleRFSubcategory(sub.id)}
@@ -735,7 +735,7 @@
 						<div class="border-warning/20 bg-warning/5 divide-white/40 divide-y border-t">
 							{#each sub.layers as layer}
 								{@const added = isRFLayerAdded(layer.storeName)}
-								<div class="flex items-center justify-between gap-2 py-1.5 pl-8 pr-3">
+								<div class="flex items-center justify-between gap-1.5 py-1 pl-6 pr-2">
 									<div class="flex flex-col">
 										<span class="text-base-content text-xs font-medium">{layer.display}</span>
 										<span class="text-base-content/50 text-xs italic">Raster Layer Description Here</span>
@@ -765,11 +765,11 @@
 	<!-- ── Config Panel (appears to right of Pathogens when a pathogen is active) ── -->
 	{#if activePathogen && !collapsed}
 		<div
-			class="{panelBase} w-56"
+			class="{panelBase} w-48"
 			transition:fly={{ x: -40, duration: 220, opacity: 0 }}
 		>
 			<!-- Header -->
-			<div class="border-b border-white/30 bg-white/40 px-3 py-2">
+			<div class="border-b border-white/30 bg-white/40 px-2 py-1.5">
 				<div class="flex items-center gap-2">
 					<button
 						class="text-base-content/50 hover:text-base-content transition-colors"
@@ -787,7 +787,7 @@
 			</div>
 
 			<!-- Controls group -->
-			<div class="max-h-[calc(100vh-280px)] space-y-3 overflow-y-auto p-3">
+			<div class="max-h-[calc(100vh-280px)] space-y-2 overflow-y-auto p-2.5">
 
 				<!-- Age Group -->
 				<div>
