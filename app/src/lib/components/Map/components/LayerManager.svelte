@@ -39,7 +39,7 @@
 	let pathogensExpanded = false;
 	let riskFactorsExpanded = false;
 	let rfOpenSubcategory = ''; // which sub-category is vertically expanded
-	let activeLayersExpanded = false;
+	let activeLayersExpanded = true;
 	let expandedLayerDetails = new Set<string>();
 	let layerDateWindows: Record<string, { from: string; to: string }> = {};
 
@@ -157,6 +157,24 @@
 		_pointsHidden = true;
 		dataPointsVisibleStore.set(false);
 		applyDataPointsVisibility($mapInstance, false);
+	}
+
+	// Apply default selection once data points are ready
+	let _defaultsApplied = false;
+	$: if (_pointsHidden && !_defaultsApplied) {
+		_defaultsApplied = true;
+		applyDefaults();
+	}
+
+	async function applyDefaults() {
+		pathogensExpanded = true;
+		await activatePathogen('__Campylobacter__');
+		await selectAgeGroup('01_Age_PSAC');
+		await selectSyndrome('02_Synd_Diar');
+		// Wait for any subscriber-triggered handleFilterChange calls (pie chart symbol
+		// generation) to finish before making the layer visible.
+		await new Promise(r => setTimeout(r, 400));
+		toggleDataPoints();
 	}
 
 	onDestroy(() => {
@@ -700,6 +718,7 @@
 						onclick={() => toggleRFSubcategory(sub.id)}
 					>
 						<span class="flex items-center gap-2">
+							<span class="inline-block h-2 w-2 flex-shrink-0 rounded-full border-2 {isOpen ? 'border-warning bg-warning' : 'border-base-300 bg-transparent'}"></span>
 							{sub.label}
 						</span>
 						<svg
