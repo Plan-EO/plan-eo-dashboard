@@ -3,7 +3,7 @@ import type { MapStyle } from './types';
 import { MAP_STYLES } from './types';
 
 const STORAGE_KEY = 'selectedMapStyle';
-const defaultStyle = MAP_STYLES.find(style => style.id === 'light') || MAP_STYLES[0];
+const defaultStyle = MAP_STYLES.find(style => style.id === 'street-map') || MAP_STYLES[0];
 
 export function loadStoredStyle(): MapStyle {
   if (!browser) return defaultStyle;

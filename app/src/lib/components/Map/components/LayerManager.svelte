@@ -827,9 +827,8 @@
 							{lmAgeGroup ? 'Select syndrome' : 'Select age group first'}
 						</option>
 						{#each availableSyndromes as val}
-							<option value={val}>
-								{($syndromeValToLab.get(val) || val).replace('^^', '').trim()}
-							</option>
+							{@const { isIndented, text: synLabel } = parseIndentationPrefix($syndromeValToLab.get(val) || val)}
+							<option value={val}>{isIndented ? '    ' + synLabel : synLabel}</option>
 						{/each}
 					</select>
 				</div>
