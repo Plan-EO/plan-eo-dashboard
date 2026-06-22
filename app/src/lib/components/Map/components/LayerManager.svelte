@@ -468,13 +468,13 @@
 		<!-- Header -->
 		<div class="border-b border-white/30 bg-white/40 px-2 py-1.5">
 			<div class="flex items-center justify-between">
-				<h2 class="text-base-content text-sm font-semibold">Layer Manager</h2>
+				<h2 class="text-base-content text-xs font-semibold">Layer Manager</h2>
 				<button
 					class="btn btn-ghost btn-square btn-xs"
 					title={collapsed ? 'Expand' : 'Collapse'}
 					onclick={() => (collapsed = !collapsed)}
 				>
-					<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 						{#if collapsed}
 							<polyline points="9 18 15 12 9 6"></polyline>
 						{:else}
@@ -489,13 +489,13 @@
 			<div class="p-2 space-y-1">
 				<!-- Pathogens category -->
 				<button
-					class="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm transition-colors {pathogensExpanded
+					class="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition-colors {pathogensExpanded
 						? 'bg-warning/10 text-warning font-medium'
 						: 'hover:bg-white/60 text-base-content'}"
 					onclick={togglePathogens}
 				>
 					<span class="flex items-center gap-2">
-						<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<circle cx="12" cy="12" r="3" stroke-width="2" />
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
 						</svg>
@@ -508,13 +508,13 @@
 
 				<!-- Risk Factors / Interventions -->
 				<button
-					class="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm transition-colors {riskFactorsExpanded
+					class="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition-colors {riskFactorsExpanded
 						? 'bg-warning/10 text-warning font-medium'
 						: 'hover:bg-white/60 text-base-content'}"
 					onclick={toggleRiskFactors}
 				>
 					<span class="flex items-center gap-2">
-						<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
 						</svg>
 						Risk Factors
@@ -526,13 +526,13 @@
 
 				<!-- Active Layers (accordion down) -->
 				<button
-					class="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm transition-colors {activeLayersExpanded
+					class="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition-colors {activeLayersExpanded
 						? 'bg-primary/10 text-primary font-medium'
 						: 'hover:bg-white/60 text-base-content'}"
 					onclick={toggleActiveLayers}
 				>
 					<span class="flex items-center gap-2">
-						<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
 						</svg>
 						Active Layers
@@ -658,7 +658,7 @@
 		>
 			<!-- Header -->
 			<div class="border-b border-white/30 bg-white/40 px-2 py-1.5">
-				<h3 class="text-base-content text-sm font-semibold">Pathogens</h3>
+				<h3 class="text-base-content text-xs font-semibold">Pathogens</h3>
 			</div>
 
 			<!-- Pathogen list -->
@@ -667,7 +667,7 @@
 					{@const isActive = activePathogen === pathogen}
 					{@const count = $pathogenCounts.get(pathogen) || 0}
 					<button
-						class="flex w-full items-center justify-between px-2 py-1 text-left text-sm transition-colors {isActive
+						class="flex w-full items-center justify-between px-2 py-1 text-left text-xs transition-colors {isActive
 							? 'bg-warning/10 text-warning font-medium'
 							: 'hover:bg-white/60 text-base-content'}"
 						onclick={() => activatePathogen(pathogen)}
@@ -702,7 +702,7 @@
 		>
 			<!-- Header -->
 			<div class="border-b border-white/30 bg-white/40 px-2 py-1.5">
-				<h3 class="text-sm font-semibold truncate">Risk Factors</h3>
+				<h3 class="text-xs font-semibold truncate">Risk Factors</h3>
 			</div>
 
 			<!-- Sub-categories (vertical accordion) -->
@@ -712,7 +712,7 @@
 
 					<!-- Sub-category header -->
 					<button
-						class="flex w-full items-center justify-between pl-4 pr-2 py-1.5 text-left text-sm font-medium transition-colors {isOpen
+						class="flex w-full items-center justify-between pl-4 pr-2 py-1.5 text-left text-xs font-medium transition-colors {isOpen
 							? 'bg-warning/10 text-warning'
 							: 'hover:bg-white/60 text-base-content'}"
 						onclick={() => toggleRFSubcategory(sub.id)}
@@ -780,7 +780,7 @@
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
 						</svg>
 					</button>
-					<h3 class="text-sm font-semibold leading-snug">
+					<h3 class="text-xs font-semibold leading-snug">
 						{@html formatPathogenDisplay(activePathogen)}
 					</h3>
 				</div>
@@ -796,7 +796,7 @@
 					</label>
 					<select
 						id="lm-agegroup"
-						class="select select-bordered w-full bg-white/80 text-sm focus:border-primary"
+						class="select select-sm select-bordered w-full bg-white/80 text-xs focus:border-primary"
 						value={lmAgeGroup}
 						onchange={(e) => selectAgeGroup(e.currentTarget.value)}
 					>
@@ -818,7 +818,7 @@
 					</label>
 					<select
 						id="lm-syndrome"
-						class="select select-bordered w-full bg-white/80 text-sm focus:border-primary disabled:opacity-40"
+						class="select select-sm select-bordered w-full bg-white/80 text-xs focus:border-primary disabled:opacity-40"
 						value={lmSyndrome}
 						disabled={!lmAgeGroup}
 						onchange={(e) => selectSyndrome(e.currentTarget.value)}
