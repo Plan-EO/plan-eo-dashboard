@@ -157,9 +157,12 @@
 			// Get the raster value using fast version (no neighbor analysis)
 			const value = getRasterValueAtCoordinateFast(visibleRasterLayer, coords[0], coords[1]);
 
+			const hoverRescaleMax = visibleRasterLayer.rescale?.[1];
+			const hoverScaleFactor = hoverRescaleMax !== undefined && hoverRescaleMax <= 1 ? 100 : 1;
+
 			// Update only essential hover info for tooltip
 			debugInfo.hoverInRaster = true;
-			debugInfo.hoverRasterValue = value;
+			debugInfo.hoverRasterValue = value !== null ? value * hoverScaleFactor : null;
 		} else {
 			debugInfo.hoverInRaster = false;
 			debugInfo.hoverRasterValue = null;
@@ -449,8 +452,14 @@
 			const formattedLng = clickCoordinates[0].toFixed(4);
 			const formattedLat = clickCoordinates[1].toFixed(4);
 
-			// Convert raster value to percentage (Pr rasters are in percent units)
-			const prevalencePercent = rasterValue;
+			// Detect value scale: files on 0-1 proportion scale have rescale max <= 1;
+			// files already on 0-100 percentage scale have rescale max > 1.
+			// Multiply 0-1 files by 100 so all display values are on the 0-100 scale.
+			const rescaleMax = visibleRasterLayer.rescale?.[1];
+			const isProportionScale = rescaleMax !== undefined && rescaleMax <= 1;
+			const scaleFactor = isProportionScale ? 100 : 1;
+
+			const prevalencePercent = rasterValue * scaleFactor;
 
 			// Try to compute 95% CI using matching SE raster if available
 			let prevalenceLabel: string | null = null;
@@ -480,11 +489,9 @@
 						clickCoordinates[1]
 					);
 					if (seValue !== null && isFinite(seValue)) {
-						// SE assumed to be in percent units; 95% CI = prev ± 1.96*SE
-						const halfWidth = 1.96 * seValue;
+						const halfWidth = 1.96 * seValue * scaleFactor;
 						const lower = Math.max(0, prevalencePercent - halfWidth);
 						const upper = Math.min(100, prevalencePercent + halfWidth);
-						// Display numbers without %; header shows unit as Prevalence (%)
 						prevalenceLabel = `${prevalencePercent.toFixed(2)} (${lower.toFixed(2)}–${upper.toFixed(2)})`;
 					}
 				}
@@ -564,9 +571,10 @@
 				footnote: metadata
 					? `${metadata.indicator || 'Value'} from "${layerName}" at ${formattedLng}°, ${formattedLat}°.`
 					: `Exact prevalence value from raster layer "${layerName}" at coordinates ${formattedLng}°, ${formattedLat}°.`,
+				footnoteDetail: metadata?.footnoteDetail || '',
 				layerType: metadata?.type,
-				rescaleMin: visibleRasterLayer.rescale?.[0] ?? 0,
-				rescaleMax: visibleRasterLayer.rescale?.[1] ?? 11
+				rescaleMin: (visibleRasterLayer.rescale?.[0] ?? 0) * scaleFactor,
+				rescaleMax: (visibleRasterLayer.rescale?.[1] ?? 1) * scaleFactor
 			};
 
 			popoverCoordinates = clickCoordinates;
@@ -829,7 +837,7 @@
 			style="left: {debugInfo.hoverMousePos.x}px; top: {debugInfo.hoverMousePos
 				.y}px; transform: translate(-50%, -50%);"
 		>
-			Prevalence: {debugInfo.hoverRasterValue}
+			Prevalence: {debugInfo.hoverRasterValue?.toFixed(2)}%
 		</div>
 	{/if}
 

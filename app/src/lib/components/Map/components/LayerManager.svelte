@@ -45,10 +45,12 @@
 	let layerDateWindows: Record<string, { from: string; to: string }> = {};
 
 	// Risk Factors sub-category definitions — built dynamically from loaded raster config
-	function buildRFSubcategories(layers: Map<string, RasterLayer>): Array<{id: string; label: string; layers: {storeName: string; display: string}[]}> {
+	function buildRFSubcategories(layers: Map<string, RasterLayer>): Array<{id: string; label: string; layers: {storeName: string; display: string; description?: string}[]}> {
 		const ordered: string[] = [];
-		const grouped = new Map<string, {id: string; label: string; layers: {storeName: string; display: string}[]}>();
+		const grouped = new Map<string, {id: string; label: string; layers: {storeName: string; display: string; description?: string}[]}>();
 		for (const layer of layers.values()) {
+			if (layer.layerMetadata?.type !== 'Risk Factor') continue;
+			if (layer.sourceUrl.endsWith('_SE.tif')) continue;
 			const ph = layer.layerMetadata?.panelHeading;
 			const ps = layer.layerMetadata?.panelSubheading;
 			if (!ph || !ps) continue;
@@ -57,11 +59,19 @@
 				grouped.set(ph, { id, label: ph, layers: [] });
 				ordered.push(ph);
 			}
-			grouped.get(ph)!.layers.push({ storeName: layer.name, display: ps });
+			grouped.get(ph)!.layers.push({ storeName: layer.name, display: ps, description: layer.layerMetadata?.layerDescription });
 		}
 		return ordered.map((ph) => grouped.get(ph)!);
 	}
 	$: rfSubcategories = buildRFSubcategories($rasterLayers);
+
+	// Derive section titles from layer metadata so the Excel Layer_Manager column controls them
+	$: pathogenSectionTitle = Array.from($rasterLayers.values())
+		.find(l => l.layerMetadata?.type === 'Pathogen')
+		?.layerMetadata?.layerManagerCategory ?? 'Pathogens';
+	$: rfSectionTitle = Array.from($rasterLayers.values())
+		.find(l => l.layerMetadata?.type === 'Risk Factor')
+		?.layerMetadata?.layerManagerCategory ?? 'Risk Factors';
 
 	// Find the display label + subcategory name for a raster layer by its config `name`
 	function findLayerDef(layerName: string): { display: string; subtitle: string } | undefined {
@@ -470,7 +480,7 @@
 							<circle cx="12" cy="12" r="3" stroke-width="2" />
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
 						</svg>
-						Pathogens
+						{pathogenSectionTitle}
 					</span>
 					<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
@@ -488,7 +498,14 @@
 						<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
 						</svg>
-						Risk Factors
+						{#if rfSectionTitle.includes(' & ')}
+							<span class="leading-tight">
+								<span class="block">{rfSectionTitle.split(' & ')[0]} &</span>
+								<span class="block">{rfSectionTitle.split(' & ')[1]}</span>
+							</span>
+						{:else}
+							{rfSectionTitle}
+						{/if}
 					</span>
 					<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
@@ -645,7 +662,7 @@
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
 						</svg>
 					</button>
-					<h3 class="text-base-content text-xs font-semibold">Pathogens</h3>
+					<h3 class="text-base-content text-xs font-semibold">{pathogenSectionTitle}</h3>
 				</div>
 			</div>
 
@@ -700,7 +717,14 @@
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
 						</svg>
 					</button>
-					<h3 class="text-xs font-semibold truncate">Risk Factors</h3>
+					<h3 class="text-xs font-semibold leading-tight">
+						{#if rfSectionTitle.includes(' & ')}
+							<span class="block">{rfSectionTitle.split(' & ')[0]} &</span>
+							<span class="block">{rfSectionTitle.split(' & ')[1]}</span>
+						{:else}
+							{rfSectionTitle}
+						{/if}
+					</h3>
 				</div>
 			</div>
 
@@ -737,7 +761,7 @@
 								<div class="flex items-center justify-between gap-1.5 py-1 pl-6 pr-2">
 									<div class="flex flex-col">
 										<span class="text-base-content text-xs font-medium">{layer.display}</span>
-										<span class="text-base-content/50 text-xs italic">Raster Layer Description Here</span>
+										{#if layer.description}<span class="text-base-content/50 text-[10px] italic">{layer.description}</span>{/if}
 									</div>
 									<button
 										class="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-white transition-colors {added ? 'bg-error/80 hover:bg-error' : 'bg-secondary/80 hover:bg-secondary'}"
