@@ -86,7 +86,7 @@ export function getRasterValueAtCoordinateFast(
   const value = data[index];
 
   // Fast no-data check - most values are valid, so optimize for that path
-  if (!isNaN(value) && value > -1e10 && value < 1e10) {
+  if (!isNaN(value) && value > -1e10 && value < 1e10 && value !== -9999 && value !== -999) {
     // Fast rounding to 2 decimal places
     return ~~(value * 100 + 0.5) / 100;
   }
@@ -150,7 +150,7 @@ export function getRasterValueAtCoordinate(
   // Check for no-data values
   // NaN indicates no data (ocean, outside coverage area, etc.)
   // 0 is a valid value (0% prevalence)
-  if (isNaN(value) || value < -1e10 || value > 1e10) {
+  if (isNaN(value) || value < -1e10 || value > 1e10 || value === -9999 || value === -999) {
     return null;
   }
 
