@@ -11,7 +11,9 @@
       "definition": "Predicted prevalence of Shigella spp.",
       "period": "2018",
       "study": "Badr, Colston et al. 2023, Lancet Glob Health",
-      "hyperlink": "https://doi.org/10.1016/S2214-109X(22)00549-6"
+      "hyperlink": "https://doi.org/10.1016/S2214-109X(22)00549-6",
+      "popupHeading": "Spatiotemporal variation in risk of __Shigella__ infection in childhood",
+      "popupSubheading": "Prevalence of _Shigella_ in asymptomatic pre-school age children aged 0-11 months, predicted by a Bayesian statistical model"
     },
     {
       "name": "Shigella – 0-11 months – Community detected diarrhea",
@@ -24,7 +26,9 @@
       "definition": "Predicted prevalence of Shigella spp.",
       "period": "2018",
       "study": "Badr, Colston et al. 2023, Lancet Glob Health",
-      "hyperlink": "https://doi.org/10.1016/S2214-109X(22)00549-6"
+      "hyperlink": "https://doi.org/10.1016/S2214-109X(22)00549-6",
+      "popupHeading": "Spatiotemporal variation in risk of __Shigella__ infection in childhood",
+      "popupSubheading": "Prevalence of _Shigella_ in pre-school age children aged 0-11 months with diarrhea detected by community surveillance, predicted by a Bayesian statistical model"
     },
     {
       "name": "Shigella – 0-11 months – Medically attended diarrhea - outpatient",
@@ -37,7 +41,9 @@
       "definition": "Predicted prevalence of Shigella spp.",
       "period": "2018",
       "study": "Badr, Colston et al. 2023, Lancet Glob Health",
-      "hyperlink": "https://doi.org/10.1016/S2214-109X(22)00549-6"
+      "hyperlink": "https://doi.org/10.1016/S2214-109X(22)00549-6",
+      "popupHeading": "Spatiotemporal variation in risk of __Shigella__ infection in childhood",
+      "popupSubheading": "Prevalence of _Shigella_ in pre-school age children aged 0-11 months with diarrhea presenting for medical care, predicted by a Bayesian statistical model"
     },
     {
       "name": "Shigella – 12-23 months – Asymptomatic",
@@ -50,7 +56,9 @@
       "definition": "Predicted prevalence of Shigella spp.",
       "period": "2018",
       "study": "Badr, Colston et al. 2023, Lancet Glob Health",
-      "hyperlink": "https://doi.org/10.1016/S2214-109X(22)00549-6"
+      "hyperlink": "https://doi.org/10.1016/S2214-109X(22)00549-6",
+      "popupHeading": "Spatiotemporal variation in risk of __Shigella__ infection in childhood",
+      "popupSubheading": "Prevalence of _Shigella_ in asymptomatic pre-school age children aged 12-23 months, predicted by a Bayesian statistical model"
     },
     {
       "name": "Shigella – 12-23 months – Community detected diarrhea",
@@ -63,7 +71,9 @@
       "definition": "Predicted prevalence of Shigella spp.",
       "period": "2018",
       "study": "Badr, Colston et al. 2023, Lancet Glob Health",
-      "hyperlink": "https://doi.org/10.1016/S2214-109X(22)00549-6"
+      "hyperlink": "https://doi.org/10.1016/S2214-109X(22)00549-6",
+      "popupHeading": "Spatiotemporal variation in risk of __Shigella__ infection in childhood",
+      "popupSubheading": "Prevalence of _Shigella_ in pre-school age children aged 12-23 months with diarrhea detected by community surveillance, predicted by a Bayesian statistical model"
     },
     {
       "name": "Shigella – 12-23 months – Medically attended diarrhea - outpatient",
@@ -76,7 +86,9 @@
       "definition": "Predicted prevalence of Shigella spp.",
       "period": "2018",
       "study": "Badr, Colston et al. 2023, Lancet Glob Health",
-      "hyperlink": "https://doi.org/10.1016/S2214-109X(22)00549-6"
+      "hyperlink": "https://doi.org/10.1016/S2214-109X(22)00549-6",
+      "popupHeading": "Spatiotemporal variation in risk of __Shigella__ infection in childhood",
+      "popupSubheading": "Prevalence of _Shigella_ in pre-school age children aged 12-23 months with diarrhea presenting for medical care, predicted by a Bayesian statistical model"
     },
     {
       "name": "Shigella – 24-59 months – Asymptomatic",
@@ -89,7 +101,9 @@
       "definition": "Predicted prevalence of Shigella spp.",
       "period": "2018",
       "study": "Badr, Colston et al. 2023, Lancet Glob Health",
-      "hyperlink": "https://doi.org/10.1016/S2214-109X(22)00549-6"
+      "hyperlink": "https://doi.org/10.1016/S2214-109X(22)00549-6",
+      "popupHeading": "Spatiotemporal variation in risk of __Shigella__ infection in childhood",
+      "popupSubheading": "Prevalence of _Shigella_ in asymptomatic pre-school age children aged 24-59 months, predicted by a Bayesian statistical model"
     },
     {
       "name": "Shigella – 24-59 months – Community detected diarrhea",
@@ -102,7 +116,9 @@
       "definition": "Predicted prevalence of Shigella spp.",
       "period": "2018",
       "study": "Badr, Colston et al. 2023, Lancet Glob Health",
-      "hyperlink": "https://doi.org/10.1016/S2214-109X(22)00549-6"
+      "hyperlink": "https://doi.org/10.1016/S2214-109X(22)00549-6",
+      "popupHeading": "Spatiotemporal variation in risk of __Shigella__ infection in childhood",
+      "popupSubheading": "Prevalence of _Shigella_ in pre-school age children aged 24-59 months with diarrhea detected by community surveillance, predicted by a Bayesian statistical model"
     },
     {
       "name": "Shigella – 24-59 months – Medically attended diarrhea - outpatient",
@@ -115,7 +131,9 @@
       "definition": "Predicted prevalence of Shigella spp.",
       "period": "2018",
       "study": "Badr, Colston et al. 2023, Lancet Glob Health",
-      "hyperlink": "https://doi.org/10.1016/S2214-109X(22)00549-6"
+      "hyperlink": "https://doi.org/10.1016/S2214-109X(22)00549-6",
+      "popupHeading": "Spatiotemporal variation in risk of __Shigella__ infection in childhood",
+      "popupSubheading": "Prevalence of _Shigella_ in pre-school age children aged 24-59 months with diarrhea presenting for medical care, predicted by a Bayesian statistical model"
     },
     {
       "name": "Floor Finished – Coverage",
@@ -126,7 +144,11 @@
       "definition": "Predicted coverage of improved floor material",
       "period": "2023",
       "study": "Colston et al. 2024, PLOS GPH",
-      "hyperlink": "https://doi.org/10.1371/journal.pgph.0003338"
+      "hyperlink": "https://doi.org/10.1371/journal.pgph.0003338",
+      "popupHeading": "Spatial variation in housing construction material in low- and middle-income countries",
+      "popupSubheading": "Coverage of improved material used in the construction of dwelling floors predicted by a spatially explicit Bayesian model",
+      "panelHeading": "Housing material",
+      "panelSubheading": "Finished floors"
     },
     {
       "name": "Floor Finished – Standard Error",
@@ -137,7 +159,9 @@
       "definition": "Standard error of predicted coverage",
       "period": "2023",
       "study": "Colston et al. 2024, PLOS GPH",
-      "hyperlink": "https://doi.org/10.1371/journal.pgph.0003339"
+      "hyperlink": "https://doi.org/10.1371/journal.pgph.0003339",
+      "popupHeading": "Spatial variation in housing construction material in low- and middle-income countries",
+      "popupSubheading": "Coverage of improved material used in the construction of dwelling floors predicted by a spatially explicit Bayesian model"
     },
     {
       "name": "Roofs Finished – Coverage",
@@ -148,7 +172,11 @@
       "definition": "Predicted coverage of improved roof material",
       "period": "2023",
       "study": "Colston et al. 2024, PLOS GPH",
-      "hyperlink": "https://doi.org/10.1371/journal.pgph.0003340"
+      "hyperlink": "https://doi.org/10.1371/journal.pgph.0003340",
+      "popupHeading": "Spatial variation in housing construction material in low- and middle-income countries",
+      "popupSubheading": "Coverage of improved material used in the construction of dwelling roofs predicted by a spatially explicit Bayesian model",
+      "panelHeading": "Housing material",
+      "panelSubheading": "Finished roofs"
     },
     {
       "name": "Roofs Finished – Standard Error",
@@ -159,7 +187,9 @@
       "definition": "Standard error of predicted coverage",
       "period": "2023",
       "study": "Colston et al. 2024, PLOS GPH",
-      "hyperlink": "https://doi.org/10.1371/journal.pgph.0003341"
+      "hyperlink": "https://doi.org/10.1371/journal.pgph.0003341",
+      "popupHeading": "Spatial variation in housing construction material in low- and middle-income countries",
+      "popupSubheading": "Coverage of improved material used in the construction of dwelling roofs predicted by a spatially explicit Bayesian model"
     },
     {
       "name": "Walls Finished – Coverage",
@@ -170,7 +200,11 @@
       "definition": "Predicted coverage of improved wall material",
       "period": "2023",
       "study": "Colston et al. 2024, PLOS GPH",
-      "hyperlink": "https://doi.org/10.1371/journal.pgph.0003342"
+      "hyperlink": "https://doi.org/10.1371/journal.pgph.0003342",
+      "popupHeading": "Spatial variation in housing construction material in low- and middle-income countries",
+      "popupSubheading": "Coverage of improved material used in the construction of dwelling walls predicted by a spatially explicit Bayesian model",
+      "panelHeading": "Housing material",
+      "panelSubheading": "Finished walls"
     },
     {
       "name": "Walls Finished – Standard Error",
@@ -181,7 +215,9 @@
       "definition": "Standard error of predicted coverage",
       "period": "2023",
       "study": "Colston et al. 2024, PLOS GPH",
-      "hyperlink": "https://doi.org/10.1371/journal.pgph.0003343"
+      "hyperlink": "https://doi.org/10.1371/journal.pgph.0003343",
+      "popupHeading": "Spatial variation in housing construction material in low- and middle-income countries",
+      "popupSubheading": "Coverage of improved material used in the construction of dwelling walls predicted by a spatially explicit Bayesian model"
     },
     {
       "name": "Poultry Ownership – Coverage",
@@ -192,7 +228,11 @@
       "definition": "Predicted coverage of poultry ownership",
       "period": "2023",
       "study": "Colston et al. 2024, PLOS GPH",
-      "hyperlink": "https://doi.org/10.1371/journal.pgph.0003338"
+      "hyperlink": "https://doi.org/10.1371/journal.pgph.0003338",
+      "popupHeading": "Mapping the prevalence of household-scale livestock ownership by animal taxon in low- and middle-income countries",
+      "popupSubheading": "Prevalence of household scale poultry ownership predicted by a spatially explicit Bayesian model",
+      "panelHeading": "Livestock ownership",
+      "panelSubheading": "Poultry"
     },
     {
       "name": "Ruminant Ownership – Coverage",
@@ -203,7 +243,11 @@
       "definition": "Predicted coverage of ruminant ownership",
       "period": "2023",
       "study": "Colston et al. 2024, PLOS GPH",
-      "hyperlink": "https://doi.org/10.1371/journal.pgph.0003338"
+      "hyperlink": "https://doi.org/10.1371/journal.pgph.0003338",
+      "popupHeading": "Mapping the prevalence of household-scale livestock ownership by animal taxon in low- and middle-income countries",
+      "popupSubheading": "Prevalence of household scale ruminant ownership predicted by a spatially explicit Bayesian model",
+      "panelHeading": "Livestock ownership",
+      "panelSubheading": "Ruminants"
     },
     {
       "name": "Swine Ownership – Coverage",
@@ -214,7 +258,11 @@
       "definition": "Predicted coverage of swine ownership",
       "period": "2023",
       "study": "Colston et al. 2024, PLOS GPH",
-      "hyperlink": "https://doi.org/10.1371/journal.pgph.0003338"
+      "hyperlink": "https://doi.org/10.1371/journal.pgph.0003338",
+      "popupHeading": "Mapping the prevalence of household-scale livestock ownership by animal taxon in low- and middle-income countries",
+      "popupSubheading": "Prevalence of household scale swine ownership predicted by a spatially explicit Bayesian model",
+      "panelHeading": "Livestock ownership",
+      "panelSubheading": "Swine"
     },
     {
       "name": "Hwash_Bas_Pr",
@@ -224,7 +272,11 @@
       "indicator": "Coverage (%)",
       "definition": "Predicted coverage of basic hygiene facilities",
       "period": "2023",
-      "study": "Colston et al. 2024, PLOS GPH"
+      "study": "Colston et al. 2024, PLOS GPH",
+      "popupHeading": "Updated subnational estimates of Water, Sanitation and Hygiene access in Low- and Middle-Income countries",
+      "popupSubheading": "Coverage of basic handwashing facilities predicted by a spatially explicit Bayesian model",
+      "panelHeading": "Handwashing facility",
+      "panelSubheading": "Basic"
     },
     {
       "name": "Hwash_Lim_Pr",
@@ -234,7 +286,11 @@
       "indicator": "Coverage (%)",
       "definition": "Predicted coverage of limited hygiene facilities",
       "period": "2023",
-      "study": "Colston et al. 2024, PLOS GPH"
+      "study": "Colston et al. 2024, PLOS GPH",
+      "popupHeading": "Updated subnational estimates of Water, Sanitation and Hygiene access in Low- and Middle-Income countries",
+      "popupSubheading": "Coverage of limited handwashing facilities predicted by a spatially explicit Bayesian model",
+      "panelHeading": "Handwashing facility",
+      "panelSubheading": "Limited"
     },
     {
       "name": "Hwash_None_Pr",
@@ -244,7 +300,11 @@
       "indicator": "Coverage (%)",
       "definition": "Predicted coverage of no hygiene facility",
       "period": "2023",
-      "study": "Colston et al. 2024, PLOS GPH"
+      "study": "Colston et al. 2024, PLOS GPH",
+      "popupHeading": "Updated subnational estimates of Water, Sanitation and Hygiene access in Low- and Middle-Income countries",
+      "popupSubheading": "Prevalence of no handwashing facilities predicted by a spatially explicit Bayesian model",
+      "panelHeading": "Handwashing facility",
+      "panelSubheading": "None"
     },
     {
       "name": "ImpS_Sew_Pr",
@@ -254,7 +314,11 @@
       "indicator": "Coverage (%)",
       "definition": "Predicted coverage of improved sanitation facilities connected to a sewer",
       "period": "2023",
-      "study": "Colston et al. 2024, PLOS GPH"
+      "study": "Colston et al. 2024, PLOS GPH",
+      "popupHeading": "Updated subnational estimates of Water, Sanitation and Hygiene access in Low- and Middle-Income countries",
+      "popupSubheading": "Coverage of sanitation facilities connected to sewer or septic tank predicted by a spatially explicit Bayesian model",
+      "panelHeading": "Sanitation facility",
+      "panelSubheading": "Improved: Sewer or septic tank"
     },
     {
       "name": "ImpS_Oth_Pr",
@@ -264,7 +328,11 @@
       "indicator": "Coverage (%)",
       "definition": "Predicted coverage of other improved sanitation facilities",
       "period": "2023",
-      "study": "Colston et al. 2024, PLOS GPH"
+      "study": "Colston et al. 2024, PLOS GPH",
+      "popupHeading": "Updated subnational estimates of Water, Sanitation and Hygiene access in Low- and Middle-Income countries",
+      "popupSubheading": "Coverage of other improved sanitation facilities predicted by a spatially explicit Bayesian model",
+      "panelHeading": "Sanitation facility",
+      "panelSubheading": "Improved: Other"
     },
     {
       "name": "UnimpS_San_Pr",
@@ -274,7 +342,11 @@
       "indicator": "Coverage (%)",
       "definition": "Predicted coverage of unimproved sanitation facilities",
       "period": "2023",
-      "study": "Colston et al. 2024, PLOS GPH"
+      "study": "Colston et al. 2024, PLOS GPH",
+      "popupHeading": "Updated subnational estimates of Water, Sanitation and Hygiene access in Low- and Middle-Income countries",
+      "popupSubheading": "Coverage of unimproved sanitation facilities predicted by a spatially explicit Bayesian model",
+      "panelHeading": "Sanitation facility",
+      "panelSubheading": "Unimproved: Other"
     },
     {
       "name": "Open_Def_Pr",
@@ -284,7 +356,11 @@
       "indicator": "Coverage (%)",
       "definition": "Predicted coverage of open defecation",
       "period": "2023",
-      "study": "Colston et al. 2024, PLOS GPH"
+      "study": "Colston et al. 2024, PLOS GPH",
+      "popupHeading": "Updated subnational estimates of Water, Sanitation and Hygiene access in Low- and Middle-Income countries",
+      "popupSubheading": "Prevalence of open defecation predicted by a spatially explicit Bayesian model",
+      "panelHeading": "Sanitation facility",
+      "panelSubheading": "Open defecation"
     },
     {
       "name": "ImpW_Pipe_Pr",
@@ -294,7 +370,11 @@
       "indicator": "Coverage (%)",
       "definition": "Predicted coverage of improved piped water sources",
       "period": "2023",
-      "study": "Colston et al. 2024, PLOS GPH"
+      "study": "Colston et al. 2024, PLOS GPH",
+      "popupHeading": "Updated subnational estimates of Water, Sanitation and Hygiene access in Low- and Middle-Income countries",
+      "popupSubheading": "Prevalence of use of piped water as water source predicted by a spatially explicit Bayesian model",
+      "panelHeading": "Water source",
+      "panelSubheading": "Improved: Piped"
     },
     {
       "name": "ImpW_Grd_Pr",
@@ -304,7 +384,11 @@
       "indicator": "Coverage (%)",
       "definition": "Predicted coverage of improved groundwater sources",
       "period": "2023",
-      "study": "Colston et al. 2024, PLOS GPH"
+      "study": "Colston et al. 2024, PLOS GPH",
+      "popupHeading": "Updated subnational estimates of Water, Sanitation and Hygiene access in Low- and Middle-Income countries",
+      "popupSubheading": "Prevalence of use of groundwater as water source predicted by a spatially explicit Bayesian model",
+      "panelHeading": "Water source",
+      "panelSubheading": "Improved: Groundwater"
     },
     {
       "name": "ImpW_Oth_Pr",
@@ -314,7 +398,11 @@
       "indicator": "Coverage (%)",
       "definition": "Predicted coverage of other improved water sources",
       "period": "2023",
-      "study": "Colston et al. 2024, PLOS GPH"
+      "study": "Colston et al. 2024, PLOS GPH",
+      "popupHeading": "Updated subnational estimates of Water, Sanitation and Hygiene access in Low- and Middle-Income countries",
+      "popupSubheading": "Prevalence of use of other improved water sources predicted by a spatially explicit Bayesian model",
+      "panelHeading": "Water source",
+      "panelSubheading": "Improved: Other"
     },
     {
       "name": "UnimpW_Srf_Pr",
@@ -324,7 +412,11 @@
       "indicator": "Coverage (%)",
       "definition": "Predicted coverage of unimproved surface water sources",
       "period": "2023",
-      "study": "Colston et al. 2024, PLOS GPH"
+      "study": "Colston et al. 2024, PLOS GPH",
+      "popupHeading": "Updated subnational estimates of Water, Sanitation and Hygiene access in Low- and Middle-Income countries",
+      "popupSubheading": "Prevalence of use of surface water as water source predicted by a spatially explicit Bayesian model",
+      "panelHeading": "Water source",
+      "panelSubheading": "Unimproved: Surface water"
     },
     {
       "name": "UnimpW_Oth_Pr",
@@ -334,7 +426,11 @@
       "indicator": "Coverage (%)",
       "definition": "Predicted coverage of other unimproved water sources",
       "period": "2023",
-      "study": "Colston et al. 2024, PLOS GPH"
+      "study": "Colston et al. 2024, PLOS GPH",
+      "popupHeading": "Updated subnational estimates of Water, Sanitation and Hygiene access in Low- and Middle-Income countries",
+      "popupSubheading": "Prevalence of use of other unimproved water sources predicted by a spatially explicit Bayesian model",
+      "panelHeading": "Water source",
+      "panelSubheading": "Unimproved: Other"
     }
   ]
 }

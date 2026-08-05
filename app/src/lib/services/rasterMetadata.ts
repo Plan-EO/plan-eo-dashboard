@@ -15,6 +15,8 @@ export interface RasterMetadata {
   study: string;
   source: string;
   hyperlink: string;
+  popupHeading?: string;
+  popupSubheading?: string;
 }
 
 import { loadRasterConfig, configToMetadata } from '$lib/services/rasterConfig';

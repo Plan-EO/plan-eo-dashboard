@@ -506,11 +506,11 @@
 			if (metadata) {
 				// Use metadata to populate fields
 				if (metadata.type === 'Pathogen') {
-					heading = metadata.study || `${pathogen} Prevalence`;
-					subheading = metadata.definition || 'Predicted prevalence';
+					heading = metadata.popupHeading || metadata.study || `${pathogen} Prevalence`;
+					subheading = metadata.popupSubheading || metadata.definition || 'Predicted prevalence';
 				} else if (metadata.type === 'Risk Factor') {
-					heading = metadata.study || `${metadata.variableName} Coverage`;
-					subheading = metadata.definition || 'Predicted coverage';
+					heading = metadata.popupHeading || metadata.study || `${metadata.variableName} Coverage`;
+					subheading = metadata.popupSubheading || metadata.definition || 'Predicted coverage';
 					// For risk factors, show the currently selected pathogen from the
 					// user's filter selection rather than the layer's variable name.
 					pathogen = Array.from($selectedPathogens)[0] || 'None Selected';
