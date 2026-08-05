@@ -18,6 +18,13 @@ export interface RasterLayerConfig {
   study?: string;
   source?: string;
   hyperlink?: string;
+  popupHeading?: string;
+  popupSubheading?: string;
+  panelHeading?: string;
+  panelSubheading?: string;
+  layerDescription?: string;
+  footnoteDetail?: string;
+  layerManagerCategory?: string;
 }
 
 export interface RasterConfig {
@@ -95,6 +102,13 @@ export function configToMetadata(config: RasterLayerConfig): RasterLayerMetadata
     period: config.period,
     study: config.study,
     source: config.study,
-    hyperlink: config.hyperlink
+    hyperlink: config.hyperlink,
+    popupHeading: config.popupHeading,
+    popupSubheading: config.popupSubheading,
+    panelHeading: config.panelHeading,
+    panelSubheading: config.panelSubheading,
+    layerDescription: config.layerDescription,
+    footnoteDetail: config.footnoteDetail,
+    layerManagerCategory: config.layerManagerCategory
   };
 }

@@ -47,6 +47,7 @@ export interface PointProperties {
   heading: string;
   subheading: string;
   footnote: string;
+  footnoteDetail?: string;
   prevalence: string;
   ageRange: string;
   duration: string;
@@ -83,6 +84,13 @@ export interface RasterLayerMetadata {
   study?: string;
   source?: string;
   hyperlink?: string;
+  popupHeading?: string;
+  popupSubheading?: string;
+  panelHeading?: string;
+  panelSubheading?: string;
+  layerDescription?: string;
+  footnoteDetail?: string;
+  layerManagerCategory?: string;
 }
 
 export interface RasterLayer {

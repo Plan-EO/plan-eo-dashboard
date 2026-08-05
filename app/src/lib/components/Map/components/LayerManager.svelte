@@ -31,6 +31,7 @@
 	import { visualizationOptions } from '../store/visualizationOptions';
 	import { formatDropdownText, parseIndentationPrefix } from '../utils/textFormatter';
 	import type { VisualizationType } from '../store';
+	import type { RasterLayer } from '$lib/types';
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 
@@ -43,57 +44,34 @@
 	let expandedLayerDetails = new Set<string>();
 	let layerDateWindows: Record<string, { from: string; to: string }> = {};
 
-	// Risk Factors sub-category definitions
-	const rfSubcategories = [
-		{
-			id: 'housing',
-			label: 'Housing Material',
-			layers: [
-				{ storeName: 'Floor Finished – Coverage', display: 'Finished Floors' },
-				{ storeName: 'Roofs Finished – Coverage', display: 'Finished Roof' },
-				{ storeName: 'Walls Finished – Coverage', display: 'Finished Walls' }
-			]
-		},
-		{
-			id: 'livestock',
-			label: 'Livestock',
-			layers: [
-				{ storeName: 'Poultry Ownership – Coverage', display: 'Poultry' },
-				{ storeName: 'Ruminant Ownership – Coverage', display: 'Ruminant' },
-				{ storeName: 'Swine Ownership – Coverage', display: 'Swine' }
-			]
-		},
-		{
-			id: 'water-source',
-			label: 'Water Source',
-			layers: [
-				{ storeName: 'ImpW_Pipe_Pr', display: 'Improved: Piped' },
-				{ storeName: 'ImpW_Grd_Pr', display: 'Improved: Groundwater' },
-				{ storeName: 'ImpW_Oth_Pr', display: 'Improved: Other' },
-				{ storeName: 'UnimpW_Srf_Pr', display: 'Unimproved: Surface water' },
-				{ storeName: 'UnimpW_Oth_Pr', display: 'Unimproved: Other' }
-			]
-		},
-		{
-			id: 'sanitation-facility',
-			label: 'Sanitation Facility',
-			layers: [
-				{ storeName: 'ImpS_Sew_Pr', display: 'Improved: Sewer or septic tank' },
-				{ storeName: 'ImpS_Oth_Pr', display: 'Improved: Other' },
-				{ storeName: 'UnimpS_San_Pr', display: 'Unimproved: Other' },
-				{ storeName: 'Open_Def_Pr', display: 'Open defecation' }
-			]
-		},
-		{
-			id: 'hygiene-facility',
-			label: 'Hygiene Facility',
-			layers: [
-				{ storeName: 'Hwash_Bas_Pr', display: 'Basic' },
-				{ storeName: 'Hwash_Lim_Pr', display: 'Limited' },
-				{ storeName: 'Hwash_None_Pr', display: 'None' }
-			]
+	// Risk Factors sub-category definitions — built dynamically from loaded raster config
+	function buildRFSubcategories(layers: Map<string, RasterLayer>): Array<{id: string; label: string; layers: {storeName: string; display: string; description?: string}[]}> {
+		const ordered: string[] = [];
+		const grouped = new Map<string, {id: string; label: string; layers: {storeName: string; display: string; description?: string}[]}>();
+		for (const layer of layers.values()) {
+			if (layer.layerMetadata?.type !== 'Risk Factor') continue;
+			if (layer.sourceUrl.endsWith('_SE.tif')) continue;
+			const ph = layer.layerMetadata?.panelHeading;
+			const ps = layer.layerMetadata?.panelSubheading;
+			if (!ph || !ps) continue;
+			if (!grouped.has(ph)) {
+				const id = ph.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+				grouped.set(ph, { id, label: ph, layers: [] });
+				ordered.push(ph);
+			}
+			grouped.get(ph)!.layers.push({ storeName: layer.name, display: ps, description: layer.layerMetadata?.layerDescription });
 		}
-	];
+		return ordered.map((ph) => grouped.get(ph)!);
+	}
+	$: rfSubcategories = buildRFSubcategories($rasterLayers);
+
+	// Derive section titles from layer metadata so the Excel Layer_Manager column controls them
+	$: pathogenSectionTitle = Array.from($rasterLayers.values())
+		.find(l => l.layerMetadata?.type === 'Pathogen')
+		?.layerMetadata?.layerManagerCategory ?? 'Pathogens';
+	$: rfSectionTitle = Array.from($rasterLayers.values())
+		.find(l => l.layerMetadata?.type === 'Risk Factor')
+		?.layerMetadata?.layerManagerCategory ?? 'Risk Factors';
 
 	// Find the display label + subcategory name for a raster layer by its config `name`
 	function findLayerDef(layerName: string): { display: string; subtitle: string } | undefined {
@@ -463,12 +441,15 @@
 <!-- Panels flow left-to-right: leftmost is main, each new panel appears to its right -->
 <div class="flex flex-row items-start gap-2">
 
+	<!-- ── Left column: Main Panel stacked above Active Layers Panel ── -->
+	<div class="flex flex-col gap-2">
+
 	<!-- ── Main Panel (leftmost, always visible) ── -->
-	<div class="{panelBase} transition-all duration-200 {activeLayersExpanded ? 'w-48' : 'w-40'}">
+	<div class="{panelBase} w-48">
 		<!-- Header -->
 		<div class="border-b border-white/30 bg-white/40 px-2 py-1.5">
 			<div class="flex items-center justify-between">
-				<h2 class="text-base-content text-xs font-semibold">Layer Manager</h2>
+				<h2 class="text-base-content text-sm font-semibold">Layer Manager</h2>
 				<button
 					class="btn btn-ghost btn-square btn-xs"
 					title={collapsed ? 'Expand' : 'Collapse'}
@@ -499,7 +480,7 @@
 							<circle cx="12" cy="12" r="3" stroke-width="2" />
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
 						</svg>
-						Pathogens
+						{pathogenSectionTitle}
 					</span>
 					<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
@@ -517,29 +498,40 @@
 						<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
 						</svg>
-						Risk Factors
+						{#if rfSectionTitle.includes(' & ')}
+							<span class="leading-tight">
+								<span class="block">{rfSectionTitle.split(' & ')[0]} &</span>
+								<span class="block">{rfSectionTitle.split(' & ')[1]}</span>
+							</span>
+						{:else}
+							{rfSectionTitle}
+						{/if}
 					</span>
 					<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
 					</svg>
 				</button>
 
-				<!-- Active Layers (accordion down) -->
+			</div>
+		{/if}
+	</div>
+
+	<!-- ── Active Layers Panel (below Main panel) ── -->
+	<div class="{panelBase} w-48">
+		<!-- Header -->
+		<div class="border-b border-white/30 bg-white/40 px-2 py-1.5">
+			<div class="flex items-center justify-between">
+				<div class="flex items-center gap-2">
+					<h2 class="text-base-content text-xs font-semibold">Active Layers</h2>
+					{#if activeLayers.length > 0}
+						<span class="badge badge-primary badge-xs">{activeLayers.length}</span>
+					{/if}
+				</div>
 				<button
-					class="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition-colors {activeLayersExpanded
-						? 'bg-primary/10 text-primary font-medium'
-						: 'hover:bg-white/60 text-base-content'}"
+					class="btn btn-ghost btn-square btn-xs"
+					title={activeLayersExpanded ? 'Collapse' : 'Expand'}
 					onclick={toggleActiveLayers}
 				>
-					<span class="flex items-center gap-2">
-						<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
-						</svg>
-						Active Layers
-						{#if activeLayers.length > 0}
-							<span class="badge badge-primary badge-xs">{activeLayers.length}</span>
-						{/if}
-					</span>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						class="h-3.5 w-3.5 flex-shrink-0 transition-transform {activeLayersExpanded ? 'rotate-180' : ''}"
@@ -548,107 +540,109 @@
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
 					</svg>
 				</button>
+			</div>
+		</div>
 
-				{#if activeLayersExpanded}
-					<div transition:slide={{ duration: 180 }} class="border-t border-white/30 pt-1 space-y-1">
-						{#if activeLayers.length === 0}
-							<p class="px-3 py-3 text-center text-xs text-base-content/40 italic">No active layers yet</p>
-						{:else}
-							{#each activeLayers as layer (layer.id)}
-								<div class="rounded-md border border-white/50 bg-white/30 overflow-hidden">
-									<!-- Layer row header -->
-									<div class="flex items-center gap-1 px-2 py-1.5">
-										<button
-											class="flex flex-1 items-center gap-1.5 text-left min-w-0"
-											onclick={() => toggleLayerDetail(layer.id)}
-											title="Show layer details"
-										>
-											<span class="text-xs font-medium leading-tight truncate flex-1">{@html layer.displayName}</span>
-											<svg
-												xmlns="http://www.w3.org/2000/svg"
-												class="h-3 w-3 flex-shrink-0 text-base-content/40 transition-transform {expandedLayerDetails.has(layer.id) ? 'rotate-180' : ''}"
-												fill="none" viewBox="0 0 24 24" stroke="currentColor"
-											>
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
-											</svg>
-										</button>
-										<button
-											class="btn btn-ghost btn-square flex-shrink-0 text-error/70 hover:text-error hover:bg-error/10"
-											style="min-height:0;height:1.4rem;width:1.4rem;padding:0;"
-											onclick={layer.onRemove}
-											title="Remove layer"
-											aria-label="Remove layer"
-										>
-											<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
-											</svg>
-										</button>
+		{#if activeLayersExpanded}
+			<div transition:slide={{ duration: 180 }} class="p-2 space-y-1">
+				{#if activeLayers.length === 0}
+					<p class="px-3 py-3 text-center text-xs text-base-content/40 italic">No active layers yet</p>
+				{:else}
+					{#each activeLayers as layer (layer.id)}
+						<div class="rounded-md border border-white/50 bg-white/30 overflow-hidden">
+							<!-- Layer row header -->
+							<div class="flex items-center gap-1 px-2 py-1.5">
+								<button
+									class="flex flex-1 items-center gap-1.5 text-left min-w-0"
+									onclick={() => toggleLayerDetail(layer.id)}
+									title="Show layer details"
+								>
+									<span class="text-xs font-medium leading-tight truncate flex-1">{@html layer.displayName}</span>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										class="h-3 w-3 flex-shrink-0 text-base-content/40 transition-transform {expandedLayerDetails.has(layer.id) ? 'rotate-180' : ''}"
+										fill="none" viewBox="0 0 24 24" stroke="currentColor"
+									>
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+									</svg>
+								</button>
+								<button
+									class="btn btn-ghost btn-square flex-shrink-0 text-error/70 hover:text-error hover:bg-error/10"
+									style="min-height:0;height:1.4rem;width:1.4rem;padding:0;"
+									onclick={layer.onRemove}
+									title="Remove layer"
+									aria-label="Remove layer"
+								>
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+									</svg>
+								</button>
+							</div>
+
+							<!-- Expanded layer details -->
+							{#if expandedLayerDetails.has(layer.id)}
+								<div transition:slide={{ duration: 150 }} class="border-t border-white/40 bg-white/20 px-2.5 py-2 space-y-2.5">
+									<!-- Type + subtitle -->
+									<div class="flex items-center gap-1.5 flex-wrap">
+										<span class="badge badge-xs {layer.type === 'pathogen' ? 'badge-secondary' : 'badge-warning'} badge-outline">
+											{layer.type === 'pathogen' ? 'Point Data' : 'Raster'}
+										</span>
+										{#if layer.type === 'pathogen' && layer.vizType}
+											<span class="badge badge-xs badge-ghost">{layer.vizType}</span>
+										{/if}
 									</div>
+									<p class="text-[10px] text-base-content/60 leading-snug">{layer.subtitle}</p>
 
-									<!-- Expanded layer details -->
-									{#if expandedLayerDetails.has(layer.id)}
-										<div transition:slide={{ duration: 150 }} class="border-t border-white/40 bg-white/20 px-2.5 py-2 space-y-2.5">
-											<!-- Type + subtitle -->
-											<div class="flex items-center gap-1.5 flex-wrap">
-												<span class="badge badge-xs {layer.type === 'pathogen' ? 'badge-secondary' : 'badge-warning'} badge-outline">
-													{layer.type === 'pathogen' ? 'Point Data' : 'Raster'}
-												</span>
-												{#if layer.type === 'pathogen' && layer.vizType}
-													<span class="badge badge-xs badge-ghost">{layer.vizType}</span>
-												{/if}
+									<!-- Date Window (demo) -->
+									<div>
+										<div class="flex items-center gap-1 mb-1">
+											<p class="text-[10px] font-semibold text-base-content/70 uppercase tracking-wide">Date Window</p>
+											<span class="badge badge-xs badge-ghost text-[9px]">Demo</span>
+										</div>
+										<div class="flex flex-col gap-1">
+											<div class="flex items-center gap-1">
+												<span class="text-[10px] text-base-content/50 w-5">From</span>
+												<input
+													type="date"
+													class="input input-xs input-bordered flex-1 bg-white/80 text-[10px] h-6 min-h-0"
+													value={layerDateWindows[layer.id]?.from ?? ''}
+													onchange={(e) => {
+														layerDateWindows[layer.id] = {
+															...layerDateWindows[layer.id],
+															from: e.currentTarget.value
+														};
+														layerDateWindows = layerDateWindows;
+													}}
+												/>
 											</div>
-											<p class="text-[10px] text-base-content/60 leading-snug">{layer.subtitle}</p>
-
-											<!-- Date Window (demo) -->
-											<div>
-												<div class="flex items-center gap-1 mb-1">
-													<p class="text-[10px] font-semibold text-base-content/70 uppercase tracking-wide">Date Window</p>
-													<span class="badge badge-xs badge-ghost text-[9px]">Demo</span>
-												</div>
-												<div class="flex flex-col gap-1">
-													<div class="flex items-center gap-1">
-														<span class="text-[10px] text-base-content/50 w-5">From</span>
-														<input
-															type="date"
-															class="input input-xs input-bordered flex-1 bg-white/80 text-[10px] h-6 min-h-0"
-															value={layerDateWindows[layer.id]?.from ?? ''}
-															onchange={(e) => {
-																layerDateWindows[layer.id] = {
-																	...layerDateWindows[layer.id],
-																	from: e.currentTarget.value
-																};
-																layerDateWindows = layerDateWindows;
-															}}
-														/>
-													</div>
-													<div class="flex items-center gap-1">
-														<span class="text-[10px] text-base-content/50 w-5">To</span>
-														<input
-															type="date"
-															class="input input-xs input-bordered flex-1 bg-white/80 text-[10px] h-6 min-h-0"
-															value={layerDateWindows[layer.id]?.to ?? ''}
-															onchange={(e) => {
-																layerDateWindows[layer.id] = {
-																	...layerDateWindows[layer.id],
-																	to: e.currentTarget.value
-																};
-																layerDateWindows = layerDateWindows;
-															}}
-														/>
-													</div>
-												</div>
-												<p class="text-[9px] text-base-content/30 italic mt-1">Filtering by date range coming soon</p>
+											<div class="flex items-center gap-1">
+												<span class="text-[10px] text-base-content/50 w-5">To</span>
+												<input
+													type="date"
+													class="input input-xs input-bordered flex-1 bg-white/80 text-[10px] h-6 min-h-0"
+													value={layerDateWindows[layer.id]?.to ?? ''}
+													onchange={(e) => {
+														layerDateWindows[layer.id] = {
+															...layerDateWindows[layer.id],
+															to: e.currentTarget.value
+														};
+														layerDateWindows = layerDateWindows;
+													}}
+												/>
 											</div>
 										</div>
-									{/if}
+										<p class="text-[9px] text-base-content/30 italic mt-1">Filtering by date range coming soon</p>
+									</div>
 								</div>
-							{/each}
-						{/if}
-					</div>
+							{/if}
+						</div>
+					{/each}
 				{/if}
 			</div>
 		{/if}
 	</div>
+
+	</div><!-- end left column -->
 
 	<!-- ── Pathogens Panel (appears to right of Main when Pathogens is expanded) ── -->
 	{#if pathogensExpanded && !collapsed}
@@ -658,7 +652,18 @@
 		>
 			<!-- Header -->
 			<div class="border-b border-white/30 bg-white/40 px-2 py-1.5">
-				<h3 class="text-base-content text-xs font-semibold">Pathogens</h3>
+				<div class="flex items-center gap-2">
+					<button
+						class="text-base-content/50 hover:text-base-content transition-colors"
+						onclick={togglePathogens}
+						title="Collapse Pathogens"
+					>
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+						</svg>
+					</button>
+					<h3 class="text-base-content text-xs font-semibold">{pathogenSectionTitle}</h3>
+				</div>
 			</div>
 
 			<!-- Pathogen list -->
@@ -697,12 +702,30 @@
 	<!-- ── Risk Factors Panel (appears to right of Main when Risk Factors is expanded) ── -->
 	{#if riskFactorsExpanded && !collapsed}
 		<div
-			class="{panelBase} w-44"
+			class="{panelBase} w-48"
 			transition:fly={{ x: -40, duration: 220, opacity: 0 }}
 		>
 			<!-- Header -->
 			<div class="border-b border-white/30 bg-white/40 px-2 py-1.5">
-				<h3 class="text-xs font-semibold truncate">Risk Factors</h3>
+				<div class="flex items-center gap-2">
+					<button
+						class="text-base-content/50 hover:text-base-content transition-colors"
+						onclick={toggleRiskFactors}
+						title="Collapse Risk Factors"
+					>
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+						</svg>
+					</button>
+					<h3 class="text-xs font-semibold leading-tight">
+						{#if rfSectionTitle.includes(' & ')}
+							<span class="block">{rfSectionTitle.split(' & ')[0]} &</span>
+							<span class="block">{rfSectionTitle.split(' & ')[1]}</span>
+						{:else}
+							{rfSectionTitle}
+						{/if}
+					</h3>
+				</div>
 			</div>
 
 			<!-- Sub-categories (vertical accordion) -->
@@ -738,7 +761,7 @@
 								<div class="flex items-center justify-between gap-1.5 py-1 pl-6 pr-2">
 									<div class="flex flex-col">
 										<span class="text-base-content text-xs font-medium">{layer.display}</span>
-										<span class="text-base-content/50 text-xs italic">Raster Layer Description Here</span>
+										{#if layer.description}<span class="text-base-content/50 text-[10px] italic">{layer.description}</span>{/if}
 									</div>
 									<button
 										class="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-white transition-colors {added ? 'bg-error/80 hover:bg-error' : 'bg-secondary/80 hover:bg-secondary'}"

@@ -280,7 +280,14 @@
 					props.footnote && props.footnote.trim()
 						? `
         <div class="popup-footnote">
-          <small>${formatItalicText(props.footnote)}</small>
+          <small>${formatItalicText(props.footnote)}</small>${
+							props.footnoteDetail && props.footnoteDetail.trim()
+								? `<span class="footnote-info-icon" tabindex="0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    <span class="footnote-tooltip">${props.footnoteDetail}</span>
+                  </span>`
+								: ''
+						}
         </div>
         `
 						: ''
@@ -415,6 +422,49 @@
 		color: #666;
 		font-size: 12px;
 		line-height: normal;
+		display: flex;
+		align-items: center;
+		gap: 4px;
+	}
+
+	:global(.footnote-info-icon) {
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		flex-shrink: 0;
+		color: #999;
+		cursor: default;
+	}
+
+	:global(.footnote-info-icon:hover .footnote-tooltip),
+	:global(.footnote-info-icon:focus .footnote-tooltip) {
+		display: block;
+	}
+
+	:global(.footnote-tooltip) {
+		display: none;
+		position: absolute;
+		bottom: calc(100% + 6px);
+		right: 0;
+		width: 220px;
+		background: #333;
+		color: #fff;
+		font-size: 11px;
+		font-style: italic;
+		line-height: 1.4;
+		padding: 6px 8px;
+		border-radius: 4px;
+		white-space: normal;
+		z-index: 10;
+	}
+
+	:global(.footnote-tooltip::after) {
+		content: '';
+		position: absolute;
+		top: 100%;
+		right: 4px;
+		border: 5px solid transparent;
+		border-top-color: #333;
 	}
 
 	:global(.popup-footnote em) {
