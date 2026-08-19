@@ -2,6 +2,7 @@
 	import '$lib/assets/css/app.css';
 	import '$lib/assets/css/code-highlighted-prisma.css';
 	import Header from '$components/ui/Header.svelte';
+	import { SHOW_HEADER } from '$lib/config/layout';
 	// import Analytics from '$components/ui/Analytics.svelte';
 	import SideMenu from '$components/ui/SideMenu.svelte';
 	import GlobalToast from '$components/ui/GlobalToast.svelte';
@@ -36,7 +37,7 @@
 </svelte:head>
 
 <div
-	class="relative grid h-dvh w-dvw {isEmbedded
+	class="relative grid h-dvh w-dvw {isEmbedded || !SHOW_HEADER
 		? 'grid-rows-[1fr]'
 		: 'grid-rows-[auto_auto_1fr] sm:grid-rows-[auto_1fr]'} overflow-clip"
 >
@@ -52,7 +53,7 @@
 		</div>
 	{:else} -->
 	{#if !isEmbedded}
-		<Header />
+		{#if SHOW_HEADER}<Header />{/if}
 		<SideMenu />
 	{/if}
 	{#if children}{@render children()}{:else}
