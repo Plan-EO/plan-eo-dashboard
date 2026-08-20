@@ -27,8 +27,8 @@
 
 	// Generate position classes with higher z-index
 	$: positionClasses = {
-		'top-left': 'absolute left-10 top-12 z-50',
-		'top-right': 'absolute right-10 top-12 z-50',
+		'top-left': 'absolute left-10 top-28 z-50',
+		'top-right': 'absolute right-10 top-28 z-50',
 		'bottom-left': 'absolute left-10 bottom-12 z-50',
 		'bottom-right': 'absolute right-10 bottom-12 z-50'
 	}[position];

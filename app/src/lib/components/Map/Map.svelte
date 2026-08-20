@@ -725,7 +725,7 @@
 		<MapLayer {map} on:pointclick={handlePointClick} />
 	{/if}
 
-	<div class="absolute left-6 top-16 z-10 hidden sm:block">
+	<div class="absolute left-6 top-28 z-10 hidden sm:block">
 		<LayerManager />
 	</div>
 
