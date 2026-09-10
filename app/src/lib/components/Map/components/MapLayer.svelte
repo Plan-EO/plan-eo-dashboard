@@ -57,7 +57,8 @@
 
 		// Listen for source data events to track when layers are added
 		map.on('sourcedata', (e) => {
-			if (e.isSourceLoaded && e.sourceId === 'points-source' && e.source) {
+			const isRelevantSource = e.sourceId === 'points-source' || e.sourceId === 'clustered-source';
+			if (e.isSourceLoaded && isRelevantSource && e.source) {
 				// Source has been added, setup event handlers
 				if ($initializationState === 'ready' && !localEventHandlersSet) {
 					setupEventHandlers();
@@ -90,41 +91,68 @@
 		localEventHandlersSet = true;
 	}
 
-	// Define event handlers
-	function handlePointClick(e: any) {
-		if (e.features && e.features.length > 0) {
-			const feature = e.features[0];
-			let coordinates;
+	// Delay before committing to a single-click action, so a following dblclick can cancel it.
+	const CLICK_DELAY = 250;
+	let pointClickTimer: ReturnType<typeof setTimeout> | null = null;
+	let clusterClickTimer: ReturnType<typeof setTimeout> | null = null;
 
-			// Handle different geometry types
-			if (feature.geometry.type === 'Point') {
-				// For dots and pie charts (Point geometry)
-				coordinates = feature.geometry.coordinates.slice();
-			} else if (feature.geometry.type === 'Polygon') {
-				// For 3D bars (Polygon geometry) - get the center of the polygon
-				const polygonCoords = feature.geometry.coordinates[0]; // First ring of the polygon
-				// Calculate center point of the polygon
-				let sumLng = 0,
-					sumLat = 0;
-				const numPoints = polygonCoords.length - 1; // Exclude the closing point
-				for (let i = 0; i < numPoints; i++) {
-					sumLng += polygonCoords[i][0];
-					sumLat += polygonCoords[i][1];
-				}
-				coordinates = [sumLng / numPoints, sumLat / numPoints];
-			} else {
-				// Fallback for other geometry types
-				coordinates = feature.geometry.coordinates.slice();
+	// Shared geometry -> click-payload extraction for point-like layers
+	function extractPointClickData(e: any): { feature: any; coordinates: any; properties: any } | null {
+		if (!e.features || e.features.length === 0) return null;
+		const feature = e.features[0];
+		let coordinates;
+
+		// Handle different geometry types
+		if (feature.geometry.type === 'Point') {
+			// For dots and pie charts (Point geometry)
+			coordinates = feature.geometry.coordinates.slice();
+		} else if (feature.geometry.type === 'Polygon') {
+			// For 3D bars (Polygon geometry) - get the center of the polygon
+			const polygonCoords = feature.geometry.coordinates[0]; // First ring of the polygon
+			// Calculate center point of the polygon
+			let sumLng = 0,
+				sumLat = 0;
+			const numPoints = polygonCoords.length - 1; // Exclude the closing point
+			for (let i = 0; i < numPoints; i++) {
+				sumLng += polygonCoords[i][0];
+				sumLat += polygonCoords[i][1];
 			}
-
-			const properties = feature.properties;
-
-			dispatch('pointclick', {
-				feature,
-				coordinates,
-				properties
-			});
+			coordinates = [sumLng / numPoints, sumLat / numPoints];
+		} else {
+			// Fallback for other geometry types
+			coordinates = feature.geometry.coordinates.slice();
 		}
+
+		return { feature, coordinates, properties: feature.properties };
+	}
+
+	// Dots (points-layer): single click is delayed so a following dblclick can cancel
+	// it and zoom instead.
+	function handleDotClick(e: any) {
+		const data = extractPointClickData(e);
+		if (!data) return;
+
+		if (pointClickTimer) clearTimeout(pointClickTimer);
+		pointClickTimer = setTimeout(() => {
+			pointClickTimer = null;
+			dispatch('pointclick', data);
+		}, CLICK_DELAY);
+	}
+
+	// Double-click on an individual dot: cancel the pending popover and let
+	// maplibre's native double-click-to-zoom handle the zoom.
+	function handleDotDblClick() {
+		if (pointClickTimer) {
+			clearTimeout(pointClickTimer);
+			pointClickTimer = null;
+		}
+	}
+
+	// Pie charts: unchanged immediate single-click behavior (not part of this change).
+	function handlePieClick(e: any) {
+		const data = extractPointClickData(e);
+		if (!data) return;
+		dispatch('pointclick', data);
 	}
 
 	function handleMouseEnter() {
@@ -135,26 +163,145 @@
 		if (map) map.getCanvas().style.cursor = '';
 	}
 
-	// Setup event handlers for all visualization types
+	// Hover affordance for dots/clusters: a slight radius bump on the hovered
+	// feature, driven by feature-state (see the paint expressions in
+	// mapVisualizationManager.ts).
+	let hoveredDotId: string | number | null = null;
+	let hoveredClusterId: string | number | null = null;
+
+	function handleDotHover(e: any) {
+		if (map) map.getCanvas().style.cursor = 'pointer';
+		if (!map || !e.features || e.features.length === 0) return;
+		const feature = e.features[0];
+		if (feature.id === undefined || feature.id === hoveredDotId) return;
+
+		if (hoveredDotId !== null) {
+			map.setFeatureState({ source: 'clustered-source', id: hoveredDotId }, { hover: false });
+		}
+		hoveredDotId = feature.id;
+		map.setFeatureState({ source: 'clustered-source', id: hoveredDotId }, { hover: true });
+	}
+
+	function handleDotHoverLeave() {
+		if (map) {
+			map.getCanvas().style.cursor = '';
+			if (hoveredDotId !== null) {
+				map.setFeatureState({ source: 'clustered-source', id: hoveredDotId }, { hover: false });
+			}
+		}
+		hoveredDotId = null;
+	}
+
+	function handleClusterHover(e: any) {
+		if (map) map.getCanvas().style.cursor = 'pointer';
+		if (!map || !e.features || e.features.length === 0) return;
+		const feature = e.features[0];
+		if (feature.id === undefined || feature.id === hoveredClusterId) return;
+
+		if (hoveredClusterId !== null) {
+			map.setFeatureState({ source: 'clustered-source', id: hoveredClusterId }, { hover: false });
+		}
+		hoveredClusterId = feature.id;
+		map.setFeatureState({ source: 'clustered-source', id: hoveredClusterId }, { hover: true });
+	}
+
+	function handleClusterHoverLeave() {
+		if (map) {
+			map.getCanvas().style.cursor = '';
+			if (hoveredClusterId !== null) {
+				map.setFeatureState({ source: 'clustered-source', id: hoveredClusterId }, { hover: false });
+			}
+		}
+		hoveredClusterId = null;
+	}
+
+	function handleClusterClick(e: any) {
+		if (!map || !e.features || e.features.length === 0) return;
+		const feature = e.features[0];
+		const clusterId = feature.properties.cluster_id;
+		const coordinates = (feature.geometry as any).coordinates as [number, number];
+		const source = map.getSource('clustered-source') as any;
+		if (!source) return;
+
+		// Delay so a second click (dblclick) can cancel this and zoom instead
+		if (clusterClickTimer) clearTimeout(clusterClickTimer);
+		clusterClickTimer = setTimeout(() => {
+			clusterClickTimer = null;
+			// Show a popover listing every study currently grouped into this dot.
+			// Queried live from the cluster index, so it reflects whatever the
+			// cluster contains at the current zoom level. maplibre-gl 5's
+			// getClusterLeaves returns a Promise (no callback param).
+			source
+				.getClusterLeaves(clusterId, Infinity, 0)
+				.then((leaves: any[]) => {
+					if (!leaves || leaves.length === 0) return;
+					dispatch('pointclick', {
+						feature: leaves[0],
+						coordinates,
+						properties: leaves[0].properties,
+						multipleFeatures: leaves
+					});
+				})
+				.catch((err: any) => console.error('Failed to get cluster leaves:', err));
+		}, CLICK_DELAY);
+	}
+
+	// Double-click on a cluster: cancel the pending popover and zoom straight to the
+	// level where this cluster splits, instead of the generic +1 native zoom.
+	function handleClusterDblClick(e: any) {
+		if (clusterClickTimer) {
+			clearTimeout(clusterClickTimer);
+			clusterClickTimer = null;
+		}
+		if (!map || !e.features || e.features.length === 0) return;
+
+		// Prevent native double-click zoom now (synchronously); we'll zoom ourselves
+		// once the (async) expansion zoom comes back from the cluster index.
+		e.preventDefault();
+
+		const feature = e.features[0];
+		const clusterId = feature.properties.cluster_id;
+		const coordinates = (feature.geometry as any).coordinates as [number, number];
+		const source = map.getSource('clustered-source') as any;
+		if (!source) return;
+
+		// maplibre-gl 5's getClusterExpansionZoom returns a Promise (no callback param).
+		source
+			.getClusterExpansionZoom(clusterId)
+			.then((zoom: number) => {
+				if (!map) return;
+				map.easeTo({ center: coordinates, zoom });
+			})
+			.catch((err: any) => console.error('Failed to get cluster expansion zoom:', err));
+	}
+
+	// Setup event handlers for all visualization types.
+	// Always removes before re-adding so it is safe to call multiple times.
 	function setupEventHandlers() {
 		if (!map) return;
 
+		// Remove first to prevent duplicate listeners
+		removeEventHandlers();
+
 		if (map.getLayer('points-layer')) {
-			console.log('Adding click listener to points-layer');
-			map.on('click', 'points-layer', handlePointClick);
-			map.on('mouseenter', 'points-layer', handleMouseEnter);
-			map.on('mouseleave', 'points-layer', handleMouseLeave);
-		} else {
-			console.log('points-layer not found when trying to add listeners');
+			map.on('click', 'points-layer', handleDotClick);
+			map.on('dblclick', 'points-layer', handleDotDblClick);
+			map.on('mousemove', 'points-layer', handleDotHover);
+			map.on('mouseleave', 'points-layer', handleDotHoverLeave);
 		}
 
-		// Add event handlers for single pie chart layer
+		if (map.getLayer('clusters')) {
+			map.on('click', 'clusters', handleClusterClick);
+			map.on('dblclick', 'clusters', handleClusterDblClick);
+			map.on('mousemove', 'clusters', handleClusterHover);
+			map.on('mouseleave', 'clusters', handleClusterHoverLeave);
+		}
+
 		if (map.getLayer('pie-charts')) {
-			map.on('click', 'pie-charts', handlePointClick);
+			map.on('click', 'pie-charts', handlePieClick);
 			map.on('mouseenter', 'pie-charts', handleMouseEnter);
 			map.on('mouseleave', 'pie-charts', handleMouseLeave);
 		}
-
 	}
 
 	// Remove event handlers
@@ -162,18 +309,25 @@
 		if (!map) return;
 
 		if (map.getLayer('points-layer')) {
-			map.off('click', 'points-layer', handlePointClick);
-			map.off('mouseenter', 'points-layer', handleMouseEnter);
-			map.off('mouseleave', 'points-layer', handleMouseLeave);
+			map.off('click', 'points-layer', handleDotClick);
+			map.off('dblclick', 'points-layer', handleDotDblClick);
+			map.off('mousemove', 'points-layer', handleDotHover);
+			map.off('mouseleave', 'points-layer', handleDotHoverLeave);
+		}
+
+		if (map.getLayer('clusters')) {
+			map.off('click', 'clusters', handleClusterClick);
+			map.off('dblclick', 'clusters', handleClusterDblClick);
+			map.off('mousemove', 'clusters', handleClusterHover);
+			map.off('mouseleave', 'clusters', handleClusterHoverLeave);
 		}
 
 		// Remove event handlers for single pie chart layer
 		if (map.getLayer('pie-charts')) {
-			map.off('click', 'pie-charts', handlePointClick);
+			map.off('click', 'pie-charts', handlePieClick);
 			map.off('mouseenter', 'pie-charts', handleMouseEnter);
 			map.off('mouseleave', 'pie-charts', handleMouseLeave);
 		}
-
 	}
 
 	// Track the last visualization type to detect changes
@@ -186,21 +340,30 @@
 		$initializationState === 'ready' &&
 		$visualizationType !== lastVisualizationType
 	) {
+		const newVizType = $visualizationType;
 		// Only re-attach if visualization type actually changed and not the first time
 		if (lastVisualizationType !== null) {
-			// Check if any of our visualization layers exist
-			const hasPointsLayer = map.getLayer('points-layer');
-			const hasPieChartLayers = map.getLayer('pie-charts');
-
-			if (hasPointsLayer || hasPieChartLayers) {
-				// Wait for map to be idle after visualization change
-				console.log('Waiting for idle state to re-attach event handlers');
-				map.once('idle', () => {
-					console.log('Re-attaching event handlers after visualization change');
-					removeEventHandlers(); // Clean up any existing handlers first
-					setupEventHandlers(); // Attach fresh handlers
-				});
-			}
+			// The layer swap for the new type happens asynchronously elsewhere (and can
+			// be delayed further while mapState.store's own switch waits out an
+			// in-progress update), so poll for the new type's layer to actually exist
+			// rather than trusting a single 'idle' event, which can fire before the
+			// swap finishes and leave handlers bound to nothing.
+			let attempts = 0;
+			const waitForNewLayers = () => {
+				if (!map) return;
+				const layersReady =
+					newVizType === 'pie-charts'
+						? !!map.getLayer('pie-charts')
+						: !!map.getLayer('points-layer') || !!map.getLayer('clusters');
+				attempts++;
+				if (layersReady || attempts >= 20) {
+					removeEventHandlers();
+					setupEventHandlers();
+					return;
+				}
+				setTimeout(waitForNewLayers, 150);
+			};
+			waitForNewLayers();
 		}
 
 		lastVisualizationType = $visualizationType;

@@ -20,8 +20,10 @@ export function applyDataPointsVisibility(map: MaplibreMap | null, visible: bool
 
   // List of all possible point layer IDs
   const pointLayerIds = [
-    'points-layer', // Dots visualization
-    'pie-charts' // Single pie chart layer with dynamic sorting
+    'clusters',       // Cluster circles (dots mode)
+    'cluster-count',  // Cluster count labels (dots mode)
+    'points-layer',   // Individual unclustered dots / dots visualization
+    'pie-charts'      // Single pie chart layer with dynamic sorting
   ];
 
   // Apply visibility to each layer if it exists

@@ -88,7 +88,7 @@
 	// Config panel state
 	let lmAgeGroup = '';
 	let lmSyndrome = '';
-	let lmVisualizationType: VisualizationType = 'pie-charts';
+	let lmVisualizationType: VisualizationType = 'dots';
 	let dataPointsToggled = false;
 	let rasterToggled = false;
 
@@ -105,6 +105,10 @@
 
 	$: if ($mapInstance && !_mapInitialized) {
 		_mapInitialized = true;
+
+		// Dots is the default display mode
+		visualizationType.set('dots');
+		lmVisualizationType = 'dots';
 
 		// Disable raster auto-show immediately so URL-restored filters don't trigger rasters
 		rasterVisualizationEnabled.set(false);
@@ -306,8 +310,8 @@
 		lmSyndrome = '';
 		dataPointsToggled = false;
 		rasterToggled = false;
-		lmVisualizationType = 'pie-charts';
-		visualizationType.set('pie-charts');
+		lmVisualizationType = 'dots';
+		visualizationType.set('dots');
 		selectedPathogens.set(new Set([pathogen]));
 		selectedAgeGroups.set(new Set());
 		selectedSyndromes.set(new Set());
