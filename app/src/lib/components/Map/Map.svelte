@@ -55,8 +55,8 @@
 	// Props that can be passed to the component
 	// Previous default (whole-world view), kept here in case we need to revert:
 	// initialCenter = [-25, 16], initialZoom = 1.2
-	export let initialCenter: [number, number] = [12.114018437331538, 5.163677201297574]; // Default center coordinates [lng, lat]
-	export let initialZoom: number = 1.9; // Default zoom level
+	export let initialCenter: [number, number] = [7, 5.163677201297574]; // Default center coordinates [lng, lat]
+	export let initialZoom: number = 2.0; // Default zoom level
 	export let initialStyleId: string | null = null; // Optional style ID to use
 
 	// Track the global opacity value for raster layers
