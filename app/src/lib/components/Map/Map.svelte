@@ -53,8 +53,10 @@
 	import { detectOverlappingFeatures } from './utils/overlapDetection';
 
 	// Props that can be passed to the component
-	export let initialCenter: [number, number] = [-25, 16]; // Default center coordinates [lng, lat]
-	export let initialZoom: number = 1.2; // Default zoom level
+	// Previous default (whole-world view), kept here in case we need to revert:
+	// initialCenter = [-25, 16], initialZoom = 1.2
+	export let initialCenter: [number, number] = [12.114018437331538, 5.163677201297574]; // Default center coordinates [lng, lat]
+	export let initialZoom: number = 2.2; // Default zoom level
 	export let initialStyleId: string | null = null; // Optional style ID to use
 
 	// Track the global opacity value for raster layers
@@ -204,6 +206,11 @@
 		map.on('mousemove', handleCursorChange); // Immediate cursor change
 		map.on('mousemove', debouncedHoverFast); // Fast tooltip update (10ms)
 		map.on('mousemove', debouncedHoverDebug); // Slower debug panel update (100ms)
+
+		// A point/cluster popover's contents (esp. the study list for a cluster) are
+		// only valid at the zoom level they were opened at, so close it as soon as
+		// the zoom starts changing rather than let it show stale data.
+		map.on('zoomstart', closePointPopovers);
 
 		// Load data immediately when map is ready
 		// DISABLED: Data is already loaded by preloadData in MapInitializer
@@ -586,6 +593,16 @@
 		}
 	}
 
+	// Dismiss any open point/cluster popover, e.g. when the zoom level changes and its
+	// contents (the study list for a cluster) no longer reflect the current view.
+	function closePointPopovers() {
+		showPopover = false;
+		showMultiPointPopover = false;
+		popoverCoordinates = null;
+		popoverProperties = null;
+		multiPointFeatures = [];
+	}
+
 	function handlePointClick(event: CustomEvent) {
 		console.log('Map.svelte: handlePointClick called with:', event.detail);
 		showPopover = false;
@@ -594,7 +611,15 @@
 		popoverProperties = null;
 		multiPointFeatures = [];
 
-		const { coordinates, properties } = event.detail;
+		const { coordinates, properties, multipleFeatures } = event.detail;
+
+		// Co-located cluster leaves forwarded directly from the cluster click handler
+		if (multipleFeatures && multipleFeatures.length > 0) {
+			popoverCoordinates = coordinates;
+			multiPointFeatures = multipleFeatures;
+			showMultiPointPopover = true;
+			return;
+		}
 
 		// Check if there are multiple features at this location
 		if (map) {
@@ -655,6 +680,7 @@
 			map.off('mousemove', handleCursorChange);
 			map.off('mousemove', debouncedHoverFast);
 			map.off('mousemove', debouncedHoverDebug);
+			map.off('zoomstart', closePointPopovers);
 		}
 	});
 

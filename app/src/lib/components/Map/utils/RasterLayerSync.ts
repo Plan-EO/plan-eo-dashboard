@@ -152,6 +152,8 @@ export function syncRasterLayers(
 
             // Immediately move data point layers to the top so they're never covered by rasters
             const dataPointLayerIds = [
+              'clusters',
+              'cluster-count',
               'points-layer',
               'pie-charts',
               'pie-charts-large',

@@ -7,7 +7,7 @@ export type VisualizationType = 'dots' | 'pie-charts';
 // Create a persistent visualization type store with map updates
 function createVisualizationTypeStore() {
   const STORAGE_KEY = 'visualizationType';
-  const defaultType: VisualizationType = 'pie-charts';
+  const defaultType: VisualizationType = 'dots';
 
   // Load initial value from localStorage if available, falling back if the stored value is no longer valid
   const validTypes: VisualizationType[] = ['dots', 'pie-charts'];

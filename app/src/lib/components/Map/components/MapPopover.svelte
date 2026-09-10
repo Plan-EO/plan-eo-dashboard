@@ -58,6 +58,7 @@
 		// Make popup draggable after it is rendered
 		requestAnimationFrame(() => {
 			if (popup) makePopupDraggable(popup);
+			if (popup) setupFootnoteToggle(popup);
 		});
 
 		popup.on('close', () => {
@@ -131,6 +132,33 @@
 		};
 	}
 
+	// Click-to-toggle for the footnote "i" info icon (was a hover/focus-only CSS
+	// tooltip, which could get stuck open once the icon received focus).
+	function setupFootnoteToggle(p: maplibregl.Popup) {
+		const el = p.getElement();
+		if (!el) return;
+
+		const icons = el.querySelectorAll<HTMLElement>('.footnote-info-icon');
+		const cleanupFns: (() => void)[] = [];
+
+		icons.forEach((icon) => {
+			const tooltip = icon.querySelector<HTMLElement>('.footnote-tooltip');
+			if (!tooltip) return;
+
+			const onIconClick = (e: MouseEvent) => {
+				e.preventDefault();
+				e.stopPropagation();
+				tooltip.classList.toggle('visible');
+			};
+			icon.addEventListener('click', onIconClick);
+			cleanupFns.push(() => icon.removeEventListener('click', onIconClick));
+		});
+
+		(p as any)._footnoteCleanup = () => {
+			cleanupFns.forEach((fn) => fn());
+		};
+	}
+
 	function createOverlay() {
 		if (!map) return;
 
@@ -172,6 +200,7 @@
 	function cleanup() {
 		if (popup) {
 			(popup as any)._dragCleanup?.();
+			(popup as any)._footnoteCleanup?.();
 			popup.remove();
 			popup = null;
 		}
@@ -230,7 +259,18 @@
             ${title}
           </span>
         </h3>
-        ${subtitle && subtitle.trim() ? `<div class="popup-subtitle">${subtitle}</div>` : ''}
+        ${
+					subtitle && subtitle.trim()
+						? `<div class="popup-subtitle">${subtitle}${
+								props.footnoteDetail && props.footnoteDetail.trim()
+									? `<span class="footnote-info-icon" tabindex="0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12" stroke-width="3.25"/><line x1="12" y1="8" x2="12.01" y2="8" stroke-width="3.25"/></svg>
+                    <span class="footnote-tooltip">${props.footnoteDetail}</span>
+                  </span>`
+									: ''
+							}</div>`
+						: ''
+				}
 
         <div class="popup-section">
           ${props.layerType !== 'Risk Factor' ? `
@@ -280,14 +320,7 @@
 					props.footnote && props.footnote.trim()
 						? `
         <div class="popup-footnote">
-          <small>${formatItalicText(props.footnote)}</small>${
-							props.footnoteDetail && props.footnoteDetail.trim()
-								? `<span class="footnote-info-icon" tabindex="0">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                    <span class="footnote-tooltip">${props.footnoteDetail}</span>
-                  </span>`
-								: ''
-						}
+          <small>${formatItalicText(props.footnote)}</small>
         </div>
         `
 						: ''
@@ -432,12 +465,12 @@
 		display: inline-flex;
 		align-items: center;
 		flex-shrink: 0;
-		color: #999;
-		cursor: default;
+		margin-left: 3px;
+		color: #000;
+		cursor: pointer;
 	}
 
-	:global(.footnote-info-icon:hover .footnote-tooltip),
-	:global(.footnote-info-icon:focus .footnote-tooltip) {
+	:global(.footnote-tooltip.visible) {
 		display: block;
 	}
 

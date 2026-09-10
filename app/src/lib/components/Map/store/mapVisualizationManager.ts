@@ -88,6 +88,12 @@ export async function updateMapVisualization(
       return false;
     }
 
+    // Keep clustered-source in sync with filtered data (dots mode)
+    const clusteredSource = map.getSource('clustered-source') as maplibregl.GeoJSONSource;
+    if (clusteredSource && clusteredSource.setData) {
+      clusteredSource.setData(filteredData);
+    }
+
     // Handle pie chart specific updates
     if (vizType === 'pie-charts') {
 
@@ -142,10 +148,11 @@ function ensurePointsOnTop(map: MaplibreMap) {
       map.moveLayer('country-boundaries-layer');
     }
 
-    // Then move data visualization layers to top
-    // Order matters - last moved will be on top
-    
-    // Dots layer
+    // Cluster layers (order: circles first, then count labels, then individual points on top)
+    if (map.getLayer('clusters')) map.moveLayer('clusters');
+    if (map.getLayer('cluster-count')) map.moveLayer('cluster-count');
+
+    // Individual dots / unclustered points
     if (map.getLayer('points-layer')) {
       map.moveLayer('points-layer');
     }
@@ -165,6 +172,115 @@ function ensurePointsOnTop(map: MaplibreMap) {
   } catch (e) {
     console.error('MapVisualizationManager: Error ensuring layer order:', e);
   }
+}
+
+// Radius of the smallest cluster circle (point_count = 2). Individual (unclustered)
+// dots are sized relative to this so the two stay visually consistent if the
+// cluster radius scale is ever retuned.
+const CLUSTER_MIN_RADIUS = 16;
+const INDIVIDUAL_DOT_RADIUS = Math.round(CLUSTER_MIN_RADIUS * 0.75);
+const INDIVIDUAL_DOT_HOVER_BUMP = 3;
+
+// Add the three cluster-mode layers (clusters circle, count label, unclustered point)
+function addClusterLayers(map: MaplibreMap, visibility: 'visible' | 'none') {
+  if (!map.getLayer('clusters')) {
+    try {
+      map.addLayer({
+        id: 'clusters',
+        type: 'circle',
+        source: 'clustered-source',
+        filter: ['has', 'point_count'],
+        layout: { visibility },
+        paint: {
+          // Grey ramp starting at the "Other: Mixed Design" base grey (#C0C0C0) for the
+          // smallest clusters, darkening (toward black) as the cluster count grows.
+          'circle-color': [
+            'interpolate', ['linear'], ['get', 'point_count'],
+            2,   '#c0c0c0',
+            5,   '#9a9a9a',
+            20,  '#737373',
+            50,  '#4d4d4d',
+            100, '#262626'
+          ] as any,
+          // Base size from point count, plus a small hover bump.
+          'circle-radius': [
+            '+',
+            ['interpolate', ['linear'], ['get', 'point_count'],
+              2,   CLUSTER_MIN_RADIUS,
+              10,  22,
+              50,  30,
+              200, 42
+            ],
+            ['case', ['boolean', ['feature-state', 'hover'], false], 6, 0]
+          ] as any,
+          'circle-opacity': 0.9,
+          'circle-stroke-width': 2,
+          // Darker shade of the same fill grey at each breakpoint, instead of flat black.
+          'circle-stroke-color': [
+            'interpolate', ['linear'], ['get', 'point_count'],
+            2,   '#737373',
+            5,   '#5c5c5c',
+            20,  '#454545',
+            50,  '#2e2e2e',
+            100, '#171717'
+          ] as any
+        }
+      });
+    } catch (e) { console.warn('Failed to add clusters layer:', e); }
+  }
+
+  if (!map.getLayer('cluster-count')) {
+    try {
+      map.addLayer({
+        id: 'cluster-count',
+        type: 'symbol',
+        source: 'clustered-source',
+        filter: ['has', 'point_count'],
+        layout: {
+          visibility,
+          'text-field': '{point_count_abbreviated}',
+          'text-size': 12,
+          'text-allow-overlap': true
+        },
+        paint: { 'text-color': '#ffffff' }
+      });
+    } catch (e) { console.warn('Failed to add cluster-count layer:', e); }
+  }
+
+  if (!map.getLayer('points-layer')) {
+    try {
+      map.addLayer({
+        id: 'points-layer',
+        type: 'circle',
+        source: 'clustered-source',
+        filter: ['!', ['has', 'point_count']],
+        layout: { visibility },
+        paint: {
+          'circle-radius': [
+            'case', ['boolean', ['feature-state', 'hover'], false],
+            INDIVIDUAL_DOT_RADIUS + INDIVIDUAL_DOT_HOVER_BUMP,
+            INDIVIDUAL_DOT_RADIUS
+          ] as any,
+          'circle-color': generateDesignColorExpression() as any,
+          'circle-opacity': 0.95,
+          'circle-stroke-width': 2,
+          'circle-stroke-color': generateDesignStrokeColorExpression() as any
+        }
+      });
+    } catch (e) { console.warn('Failed to add points-layer:', e); }
+  }
+}
+
+// Remove all cluster layers and the clustered source
+function removeClusterLayers(map: MaplibreMap) {
+  ['cluster-count', 'clusters', 'points-layer'].forEach(id => {
+    try {
+      if (map.getLayer(id)) map.removeLayer(id);
+    } catch (e) { console.warn(`Failed to remove layer ${id}:`, e); }
+  });
+  try {
+    if (map.getSource('clustered-source')) map.removeSource('clustered-source');
+  } catch (e) { console.warn('Failed to remove clustered-source:', e); }
 }
 
 // Function to add initial points to map (called once when map is ready)
@@ -202,10 +318,24 @@ export async function addInitialPointsToMap(
     }
 
     if (sourceExists) {
-      // If source exists but pointsAdded is false, it means we're in an inconsistent state
-      // Fix this by setting pointsAdded to true
-      setPointsAddedToMap(true);
-      return true; // Return true since the source is already there
+      // Source exists — check if the correct layers are also in place
+      const hasDotsLayers = !!map.getLayer('points-layer');
+      const hasPieLayers = !!map.getLayer('pie-charts');
+      const layersPresent = vizType === 'pie-charts' ? hasPieLayers : hasDotsLayers;
+
+      if (layersPresent) {
+        setPointsAddedToMap(true);
+        return true;
+      }
+
+      // Wrong-type layers may be present — remove them before adding the correct type
+      if (vizType === 'pie-charts' && hasDotsLayers) {
+        removeClusterLayers(map);
+      } else if (vizType !== 'pie-charts' && hasPieLayers) {
+        removePieChartLayer(map);
+        cleanupPieChartImages(map);
+      }
+      // Fall through to add correct-type layers
     }
 
     // Prepare data based on visualization type
@@ -214,11 +344,16 @@ export async function addInitialPointsToMap(
       dataToUse = getSeparatePieChartData(filteredData) as any;
     }
 
-    // Add the source
-    map.addSource('points-source', {
-      type: 'geojson',
-      data: dataToUse
-    });
+    // Add points-source only if it doesn't already exist
+    if (!map.getSource('points-source')) {
+      map.addSource('points-source', {
+        type: 'geojson',
+        data: dataToUse
+      });
+    } else {
+      // Update existing source with current data
+      (map.getSource('points-source') as maplibregl.GeoJSONSource).setData(dataToUse);
+    }
 
     // Determine initial visibility from store so layers are born with the right state
     const initialVisibility: 'visible' | 'none' = get(dataPointsVisible) ? 'visible' : 'none';
@@ -234,20 +369,21 @@ export async function addInitialPointsToMap(
       // Add single symbol layer — visibility baked in from the start
       createSinglePieChartLayer(map, filteredData, initialVisibility);
     } else {
-      // Add circle layer for dots
-      map.addLayer({
-        id: 'points-layer',
-        type: 'circle',
-        source: 'points-source',
-        layout: { 'visibility': initialVisibility },
-        paint: {
-          'circle-radius': 7,
-          'circle-color': generateDesignColorExpression() as any,
-          'circle-opacity': 0.9,
-          'circle-stroke-width': 1,
-          'circle-stroke-color': '#ffffff'
-        }
-      });
+      // Dots mode: separate clustered source so pie charts are never affected
+      if (!map.getSource('clustered-source')) {
+        map.addSource('clustered-source', {
+          type: 'geojson',
+          data: filteredData,
+          cluster: true,
+          clusterMaxZoom: 14,
+          clusterRadius: 50,
+          generateId: true
+        });
+      } else {
+        (map.getSource('clustered-source') as maplibregl.GeoJSONSource).setData(filteredData);
+      }
+
+      addClusterLayers(map, initialVisibility);
     }
 
     setPointsAddedToMap(true);
@@ -303,59 +439,46 @@ export async function switchVisualizationType(
 
     // Remove existing layers based on current type
     if (currentType === 'pie-charts') {
-      // Remove pie chart layer
       removePieChartLayer(map);
       cleanupPieChartImages(map);
     } else {
-      // Remove circle layer (dots)
-      if (map.getLayer('points-layer')) {
-        map.removeLayer('points-layer');
-      }
+      // Dots mode: remove cluster layers and clustered source
+      removeClusterLayers(map);
     }
 
-    // Add new layers
-    let dataToUse = filteredData;
+    const switchVisibility: 'visible' | 'none' = get(dataPointsVisible) ? 'visible' : 'none';
 
     if (newType === 'pie-charts') {
-      dataToUse = getSeparatePieChartData(filteredData) as any;
+      const dataToUse = getSeparatePieChartData(filteredData) as any;
 
-      // Update source data
       const source = map.getSource('points-source') as maplibregl.GeoJSONSource;
-      if (source) {
-        source.setData(dataToUse);
-      }
+      if (source) source.setData(dataToUse);
 
-      // Generate pie chart symbols
       await generatePieChartSymbols(map, filteredData, (loading) => {
         isLoading.set(loading);
         loadingMessage.set(loading ? 'Generating pie charts...' : 'Loading...');
       });
 
-      // Add single pie chart layer — visibility baked in from the start
-      const switchVisibility: 'visible' | 'none' = get(dataPointsVisible) ? 'visible' : 'none';
       createSinglePieChartLayer(map, filteredData, switchVisibility);
     } else {
-      // Update source data for dots
+      // Dots mode: add clustered source + cluster layers
       const source = map.getSource('points-source') as maplibregl.GeoJSONSource;
-      if (source) {
-        source.setData(dataToUse);
+      if (source) source.setData(filteredData);
+
+      if (!map.getSource('clustered-source')) {
+        map.addSource('clustered-source', {
+          type: 'geojson',
+          data: filteredData,
+          cluster: true,
+          clusterMaxZoom: 14,
+          clusterRadius: 50,
+          generateId: true
+        });
+      } else {
+        (map.getSource('clustered-source') as maplibregl.GeoJSONSource).setData(filteredData);
       }
 
-      // Add circle layer — visibility baked in from the start
-      const switchVisibility: 'visible' | 'none' = get(dataPointsVisible) ? 'visible' : 'none';
-      map.addLayer({
-        id: 'points-layer',
-        type: 'circle',
-        source: 'points-source',
-        layout: { 'visibility': switchVisibility },
-        paint: {
-          'circle-radius': 7,
-          'circle-color': generateDesignColorExpression() as any,
-          'circle-opacity': 0.9,
-          'circle-stroke-width': 1,
-          'circle-stroke-color': '#ffffff'
-        }
-      });
+      addClusterLayers(map, switchVisibility);
     }
 
     ensurePointsOnTop(map);
@@ -438,6 +561,25 @@ function generateDesignColorExpression() {
     matchExpression.push(design);
     matchExpression.push(color);
   });
+
+  matchExpression.push(getDefaultColor());
+  return matchExpression;
+}
+
+// Helper function to generate the individual dots' stroke color expression: each
+// design type's own darker "_dark" swatch (already defined alongside the base
+// colors in pieChartUtils.ts), instead of a flat black outline.
+function generateDesignStrokeColorExpression() {
+  const designColors = getDesignColors();
+  const matchExpression: any[] = ['match', ['get', 'design']];
+
+  Object.keys(designColors)
+    .filter((design) => !design.endsWith('_dark'))
+    .forEach((design) => {
+      const darkColor = designColors[`${design}_dark`] || designColors[design];
+      matchExpression.push(design);
+      matchExpression.push(darkColor);
+    });
 
   matchExpression.push(getDefaultColor());
   return matchExpression;

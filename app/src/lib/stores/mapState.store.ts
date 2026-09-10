@@ -297,7 +297,20 @@ filteredPointsData.subscribe((data) => {
 let previousVizType: string | null = null;
 visualizationType.subscribe((newType) => {
   if (previousVizType && previousVizType !== newType) {
-    handleVisualizationTypeChange(previousVizType, newType);
+    const oldType = previousVizType;
+    let retries = 0;
+    const trySwitch = async () => {
+      // Abort if the user switched again before we could run
+      if (get(visualizationType) !== newType) return;
+      const updating = get(isUpdatingVisualization);
+      if (updating && retries < 5) {
+        retries++;
+        setTimeout(trySwitch, 200);
+        return;
+      }
+      await handleVisualizationTypeChange(oldType, newType);
+    };
+    trySwitch();
   }
   previousVizType = newType;
 });
