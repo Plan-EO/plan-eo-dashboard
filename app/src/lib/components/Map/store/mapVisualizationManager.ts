@@ -376,7 +376,7 @@ export async function addInitialPointsToMap(
           data: filteredData,
           cluster: true,
           clusterMaxZoom: 14,
-          clusterRadius: 40,
+          clusterRadius: 30,
           generateId: true
         });
       } else {
@@ -471,7 +471,7 @@ export async function switchVisualizationType(
           data: filteredData,
           cluster: true,
           clusterMaxZoom: 14,
-          clusterRadius: 40,
+          clusterRadius: 30,
           generateId: true
         });
       } else {
