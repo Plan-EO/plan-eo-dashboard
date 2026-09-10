@@ -4,17 +4,14 @@
 	import { filteredPointsData } from '$lib/stores/filter.store';
 	import { dataError } from '$lib/stores/data.store';
 	import { visualizationType } from '$lib/stores/map.store';
+	import { selectedMapStyle } from '$lib/stores/mapStyle.store';
 	import {
 		mapInstance,
 		initializationState,
 		pointsAddedToMap,
-		isUpdatingVisualization,
-		isProgrammaticSwitching,
-		isAdjustingLayerOrder,
 		canInitializeMap,
 		mapLoaded,
 		hasData,
-		isProgrammaticOperation,
 		setMapInstance,
 		setInitializationState,
 		setPointsAddedToMap,
@@ -333,6 +330,15 @@
 	// Track the last visualization type to detect changes
 	let lastVisualizationType: string | null = null;
 
+	// 'styledata' fires for all sorts of benign internal changes (tile loads,
+	// layer reordering, paint/layout property changes) as well as a genuine
+	// user-initiated base map style swap, so it can't reliably be used on its
+	// own to decide whether to reset everything. The only place a real style
+	// swap happens is setMapStyle() (MapStyleManager.ts), which always updates
+	// selectedMapStyle right before calling map.setStyle(). Use that as the
+	// deterministic signal instead of guessing from event timing.
+	let lastKnownMapStyleId: string | null = $selectedMapStyle?.id ?? null;
+
 	// Watch for visualization type changes and re-attach handlers when needed
 	$: if (
 		map &&
@@ -371,11 +377,15 @@
 
 	// Handle style changes
 	function handleStyleChange() {
-		// Check both the derived store and individual flags for immediate response
-		if ($isProgrammaticOperation || $isAdjustingLayerOrder) {
-			console.log('Style change detected during programmatic operation, ignoring in MapLayer.');
+		// Only a genuine base map style swap should reset the point/cluster
+		// layers. Everything else that fires 'styledata' (tile loads, layer
+		// reordering, paint/layout tweaks, our own data updates, etc.) is noise
+		// for this purpose and should be ignored.
+		const currentStyleId = $selectedMapStyle?.id ?? null;
+		if (currentStyleId === lastKnownMapStyleId) {
 			return;
 		}
+		lastKnownMapStyleId = currentStyleId;
 
 		// Skip reset on initial style load
 		if (isInitialStyleLoad) {
