@@ -28,6 +28,41 @@ import { dataPointsVisible, applyDataPointsVisibility } from '$lib/stores/dataPo
 
 // Note: setMapInstance and setPointsAddedToMap are imported from mapState.store.ts
 
+// [Monitor] Log the rendered cluster/dot counts against the expected filtered
+// total, to help diagnose intermittently inflated dot counts reported on the
+// live site (numbers 2-3x too high on some page loads, resolved by a
+// refresh). Note: querySourceFeatures only sees currently-loaded tiles, so a
+// sum LOWER than expected can be normal for a zoomed-in/partial view — but a
+// sum noticeably HIGHER than expected would point at real duplicated data.
+// Remove once root-caused.
+function logClusterCountCheck(map: MaplibreMap, expectedTotal: number) {
+  map.once('idle', () => {
+    try {
+      const clusterFeatures = map.querySourceFeatures('clustered-source', {
+        filter: ['has', 'point_count']
+      });
+      const individualFeatures = map.querySourceFeatures('clustered-source', {
+        filter: ['!', ['has', 'point_count']]
+      });
+      const clusterSum = clusterFeatures.reduce(
+        (sum, f) => sum + (Number(f.properties?.point_count) || 0),
+        0
+      );
+      const renderedTotal = clusterSum + individualFeatures.length;
+      console.log(
+        `[Monitor] Cluster count check: expected=${expectedTotal} renderedSum=${renderedTotal} (clusters=${clusterFeatures.length}, clusterSum=${clusterSum}, individual=${individualFeatures.length})`
+      );
+      if (expectedTotal > 0 && renderedTotal > expectedTotal * 1.5) {
+        console.warn(
+          `[Monitor] Rendered cluster total (${renderedTotal}) is significantly higher than expected (${expectedTotal}) — possible duplicate data.`
+        );
+      }
+    } catch (e) {
+      console.warn('[Monitor] Cluster count check failed:', e);
+    }
+  });
+}
+
 // Main function to update the map visualization
 export async function updateMapVisualization(
   map: MaplibreMap | null,
@@ -124,6 +159,9 @@ export async function updateMapVisualization(
     const clusteredSource = map.getSource('clustered-source') as maplibregl.GeoJSONSource;
     if (clusteredSource && clusteredSource.setData) {
       clusteredSource.setData(filteredData);
+      if (vizType !== 'pie-charts') {
+        logClusterCountCheck(map, filteredData?.features?.length ?? 0);
+      }
     }
 
     // Handle pie chart specific updates
@@ -416,6 +454,7 @@ export async function addInitialPointsToMap(
       }
 
       addClusterLayers(map, initialVisibility);
+      logClusterCountCheck(map, filteredData?.features?.length ?? 0);
     }
 
     setPointsAddedToMap(true);

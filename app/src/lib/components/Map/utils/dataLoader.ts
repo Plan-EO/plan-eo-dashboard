@@ -28,7 +28,7 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
 
   // Use cached data if available and not forcing reload (before aborting any in-flight request)
   if (dataCache && !forceReload) {
-    console.log('Using cached data');
+    console.log(`[Monitor] loadPointsData: using cached data (${dataCache.features.length} features)`);
     pointsData.set(dataCache);
     return;
   }
@@ -56,8 +56,14 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
     }
 
     let csvText = await response.text();
-    // console.log('CSV text length:', csvText.length);
-    
+    // [Monitor] Track raw fetched size to help diagnose intermittent inflated
+    // dot counts reported on the live site — confirms/denies whether the CSV
+    // response itself came back duplicated (e.g. a CDN/edge-cache quirk).
+    // Remove once root-caused.
+    console.log(
+      `[Monitor] loadPointsData: fetched ${csvText.length} chars, content-length header=${response.headers.get('content-length')}, url=${fetchUrl}`
+    );
+
     // Remove BOM if present
     if (csvText.charCodeAt(0) === 0xFEFF) {
       csvText = csvText.slice(1);
@@ -116,6 +122,12 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
       clearFilterCache();
       pointsData.set(geoData);
       dataCache = geoData; // Cache the data
+
+      // [Monitor] Track load counts to help diagnose intermittent inflated dot
+      // counts reported on the live site. Remove once root-caused.
+      console.log(
+        `[Monitor] loadPointsData: ${result.data.length} raw CSV rows -> ${geoData.features.length} GeoJSON features (forceReload=${forceReload})`
+      );
 
       // Extract unique filter values and create mappings
       const pathogenSet = new Set<string>();
