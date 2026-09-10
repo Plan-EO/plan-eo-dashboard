@@ -162,9 +162,20 @@ export async function checkAndInitialize(isRetry = false) {
   if (map && ready && hasData && !pointsAdded && state === 'idle') {
     const { addInitialPointsToMap } = await getMapVisualizationManager();
     initializationState.set('initializing');
+    // addInitialPointsToMap (via ensurePointsOnTop) mutates the map style
+    // (moveLayer, etc.), which MapLayer.svelte's 'styledata' listener would
+    // otherwise mistake for an external style change and reset everything,
+    // re-triggering this same function in a loop. Flag it as programmatic
+    // like updateMapVisualization/switchVisualizationType already do.
+    isUpdatingVisualization.set(true);
     const data = get(filteredPointsData);
     const type = get(visualizationType);
-    const success = await addInitialPointsToMap(map, data, type, true);
+    let success = false;
+    try {
+      success = await addInitialPointsToMap(map, data, type, true);
+    } finally {
+      isUpdatingVisualization.set(false);
+    }
     if (success) {
       initializationState.set('ready');
       pointsAddedToMap.set(true);
@@ -196,7 +207,7 @@ export async function checkAndInitialize(isRetry = false) {
 }
 
 // Handle filter changes
-export async function handleFilterChange() {
+export async function handleFilterChange(retries = 0): Promise<void> {
   const map = get(mapInstance);
   const ready = get(mapIsReady);
   const pointsAdded = get(pointsAddedToMap);
@@ -209,8 +220,15 @@ export async function handleFilterChange() {
     return;
   }
 
-  // If already updating, skip
+  // If another update is already in flight (e.g. this call raced with the
+  // filteredPointsData subscriber below, which also calls this function),
+  // retry shortly instead of silently dropping the update — otherwise the
+  // map can end up stuck showing an older filter's data.
   if (updating) {
+    if (retries < 10) {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      return handleFilterChange(retries + 1);
+    }
     return;
   }
 
