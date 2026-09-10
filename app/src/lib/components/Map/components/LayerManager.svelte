@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { fly, slide } from 'svelte/transition';
+	import { get } from 'svelte/store';
 	import {
 		pathogens,
 		ageGroups,
@@ -21,6 +22,7 @@
 		clearFilterCache,
 		handleFilterChange,
 		mapInstance,
+		filteredPointsData,
 		applyDataPointsVisibility,
 		dataPointsVisible as dataPointsVisibleStore,
 		pointsAddedToMap,
@@ -156,6 +158,13 @@
 		// Wait for any subscriber-triggered handleFilterChange calls (pie chart symbol
 		// generation) to finish before making the layer visible.
 		await new Promise(r => setTimeout(r, 400));
+		// [Monitor] Confirm the default filters (Campylobacter + PSAC + Diarrhea)
+		// have actually narrowed the data by the time the layer becomes visible,
+		// rather than still reflecting a broader/unfiltered intermediate state —
+		// suspected cause of inflated landing dot counts. Remove once root-caused.
+		console.log(
+			`[Monitor] applyDefaults: about to show layer with ${get(filteredPointsData)?.features?.length} features`
+		);
 		toggleDataPoints();
 	}
 
