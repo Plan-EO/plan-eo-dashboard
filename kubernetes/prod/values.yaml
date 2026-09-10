@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
   repository: ghcr.io/plan-eo/plan-eo-dashboard
-  tag: prod-1.0.21
+  tag: prod-1.0.22
   pullPolicy: Always
 imagePullSecrets:
   - name: ghcr-regcred
