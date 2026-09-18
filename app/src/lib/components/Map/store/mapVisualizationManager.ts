@@ -84,41 +84,50 @@ export async function updateMapVisualization(
     return false;
   }
 
-  // The style is frequently mid-diff here (e.g. right after our own layer
-  // reordering/visibility toggles), which makes isStyleLoaded() transiently
-  // false. Wait briefly for it to settle instead of silently dropping this
-  // update — previously this bailed out immediately with no retry, so
-  // whether a given filter change actually applied was essentially a
-  // coin-flip depending on unrelated style churn.
-  if (!map.isStyleLoaded()) {
-    const settled = await new Promise<boolean>((resolve) => {
-      let attempts = 0;
-      const check = () => {
-        if (!map) {
-          resolve(false);
-          return;
-        }
-        if (map.isStyleLoaded()) {
-          resolve(true);
-          return;
-        }
-        attempts++;
-        if (attempts >= 20) {
-          resolve(false);
-          return;
-        }
-        setTimeout(check, 100);
-      };
-      check();
-    });
-    if (!settled) {
-      return false;
-    }
-  }
-
+  // Claim the in-flight flag now, before the async isStyleLoaded wait below.
+  // Previously this was set after that wait, leaving a window (up to ~2s)
+  // where a second call (e.g. from a rapid follow-up filter change) could
+  // pass the guard above while this one was still pending. Both calls would
+  // then race to setData() on the same sources, and whichever happened to
+  // resolve last would win — not necessarily the one with the newest
+  // filtered data. That let stale (differently-filtered) data silently
+  // stick in clustered-source, which is consistent with both the
+  // intermittently-wrong grouped-dot contents and the drifting dot counts
+  // seen after the page has been open for a while.
   isUpdatingVisualization.set(true);
 
   try {
+    // The style is frequently mid-diff here (e.g. right after our own layer
+    // reordering/visibility toggles), which makes isStyleLoaded() transiently
+    // false. Wait briefly for it to settle instead of silently dropping this
+    // update — previously this bailed out immediately with no retry, so
+    // whether a given filter change actually applied was essentially a
+    // coin-flip depending on unrelated style churn.
+    if (!map.isStyleLoaded()) {
+      const settled = await new Promise<boolean>((resolve) => {
+        let attempts = 0;
+        const check = () => {
+          if (!map) {
+            resolve(false);
+            return;
+          }
+          if (map.isStyleLoaded()) {
+            resolve(true);
+            return;
+          }
+          attempts++;
+          if (attempts >= 20) {
+            resolve(false);
+            return;
+          }
+          setTimeout(check, 100);
+        };
+        check();
+      });
+      if (!settled) {
+        return false;
+      }
+    }
 
     // Check if source exists
     let sourceExists = false;

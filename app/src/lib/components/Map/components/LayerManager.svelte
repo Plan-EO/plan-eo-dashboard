@@ -252,7 +252,10 @@
 			riskFactorsExpanded = false;
 			rfOpenSubcategory = '';
 		}
-		if (!pathogensExpanded && activePathogen) {
+		// Only abandon the pathogen selection if it was never committed to the
+		// map (no "+" click yet) — a layer the user already added should
+		// survive collapsing this panel to go look at Risk Factors, etc.
+		if (!pathogensExpanded && activePathogen && !layerAdded) {
 			clearActivePathogen();
 		}
 	}
@@ -261,7 +264,7 @@
 		riskFactorsExpanded = !riskFactorsExpanded;
 		if (riskFactorsExpanded) {
 			pathogensExpanded = false;
-			if (activePathogen) clearActivePathogen();
+			if (activePathogen && !layerAdded) clearActivePathogen();
 		} else {
 			rfOpenSubcategory = '';
 		}
@@ -799,7 +802,7 @@
 	{/if}
 
 	<!-- ── Config Panel (appears to right of Pathogens when a pathogen is active) ── -->
-	{#if activePathogen && !collapsed}
+	{#if activePathogen && pathogensExpanded && !collapsed}
 		<div
 			class="{panelBase} w-48"
 			transition:fly={{ x: -40, duration: 220, opacity: 0 }}
