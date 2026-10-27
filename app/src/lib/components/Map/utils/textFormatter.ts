@@ -69,24 +69,25 @@ export function getCleanLabel(valField?: string, labField?: string): string {
 }
 
 /**
- * Parses text with ^^ prefix for indentation and returns the formatted text
- * @param text The text potentially containing ^^ prefix
- * @returns Object with indented flag and cleaned text
+ * Parses text with one or more repeated ^^ prefixes for indentation (e.g. "^^" for
+ * one level, "^^^^" for two levels) and returns the formatted text.
+ * @param text The text potentially containing ^^ prefix(es)
+ * @returns Object with indented flag, indent level (number of ^^ pairs), and cleaned text
  */
-export function parseIndentationPrefix(text: string): { isIndented: boolean; text: string } {
-  if (!text) return { isIndented: false, text: '' };
-  
-  // Check if text starts with ^^
-  if (text.startsWith('^^')) {
-    return {
-      isIndented: true,
-      text: text.substring(2) // Remove the ^^ prefix
-    };
+export function parseIndentationPrefix(text: string): { isIndented: boolean; level: number; text: string } {
+  if (!text) return { isIndented: false, level: 0, text: '' };
+
+  let level = 0;
+  let rest = text;
+  while (rest.startsWith('^^')) {
+    level++;
+    rest = rest.substring(2);
   }
-  
+
   return {
-    isIndented: false,
-    text
+    isIndented: level > 0,
+    level,
+    text: rest
   };
 }
 

@@ -9,6 +9,7 @@
 		isLoading,
 		loadingMessage,
 		dataError,
+		skippedRowsCount,
 		pointsData,
 		filteredPointsData,
 		rasterLayers,
@@ -86,6 +87,15 @@
 	// Multi-point popover state
 	let showMultiPointPopover = false;
 	let multiPointFeatures: maplibregl.MapGeoJSONFeature[] = [];
+
+	// Dismissible warning when the last data load dropped rows for missing/
+	// invalid coordinates. Re-arms itself if a later load has a different count.
+	let skippedRowsWarningDismissed = false;
+	let lastSkippedRowsCount = 0;
+	$: if ($skippedRowsCount !== lastSkippedRowsCount) {
+		lastSkippedRowsCount = $skippedRowsCount;
+		skippedRowsWarningDismissed = false;
+	}
 
 	// Debug state
 	let debugInfo = {
@@ -870,6 +880,21 @@
 	{#if $isLoading}
 		<div class="alert fixed bottom-6 left-4 z-[1000] w-auto shadow-lg">
 			<span class="text-sm font-medium">{$loadingMessage || 'Loading...'}</span>
+		</div>
+	{/if}
+
+	{#if $skippedRowsCount > 0 && !skippedRowsWarningDismissed}
+		<div class="alert alert-warning fixed top-4 left-1/2 z-[1000] w-auto -translate-x-1/2 shadow-lg">
+			<span class="text-sm font-medium">
+				{$skippedRowsCount} data {$skippedRowsCount === 1 ? 'row was' : 'rows were'} skipped — missing or invalid coordinates in the source file.
+			</span>
+			<button
+				class="btn btn-ghost btn-xs"
+				aria-label="Dismiss"
+				on:click={() => (skippedRowsWarningDismissed = true)}
+			>
+				✕
+			</button>
 		</div>
 	{/if}
 

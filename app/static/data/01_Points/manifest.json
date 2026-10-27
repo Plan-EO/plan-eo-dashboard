@@ -1,11 +1,21 @@
 {
   "files": [
     {
+      "fileName": "2026-10-27_Plan-EO_Dashboard_point_data.csv",
+      "date": "2026-10-27",
+      "displayDate": "October 27, 2026"
+    },
+    {
+      "fileName": "2026-09-24_Plan-EO_Dashboard_point_data.csv",
+      "date": "2026-09-24",
+      "displayDate": "September 24, 2026"
+    },
+    {
       "fileName": "2025-09-01_Plan-EO_Dashboard_point_data.csv",
       "date": "2025-09-01",
       "displayDate": "September 1, 2025"
     }
   ],
-  "lastUpdated": "2026-04-08T07:23:07.518Z",
+  "lastUpdated": "2026-10-27T22:34:47.366Z",
   "generatedBy": "generate-data-manifest.js"
 }
