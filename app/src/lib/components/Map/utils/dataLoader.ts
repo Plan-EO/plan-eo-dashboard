@@ -1,5 +1,5 @@
 import { get } from 'svelte/store';
-import { isLoading, dataError, pointsData, pathogenColors } from '$lib/stores/data.store';
+import { isLoading, dataError, pointsData, pathogenColors, skippedRowsCount } from '$lib/stores/data.store';
 import {
   pathogens,
   ageGroups,
@@ -128,6 +128,11 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
       console.log(
         `[Monitor] loadPointsData: ${result.data.length} raw CSV rows -> ${geoData.features.length} GeoJSON features (forceReload=${forceReload})`
       );
+
+      // Surface rows dropped for missing/invalid coordinates as a visible
+      // warning (not just a console log) so a malformed source export isn't
+      // silently missing data points with nothing to flag it.
+      skippedRowsCount.set(Math.max(0, result.data.length - geoData.features.length));
 
       // Extract unique filter values and create mappings
       const pathogenSet = new Set<string>();

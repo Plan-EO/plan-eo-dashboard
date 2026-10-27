@@ -841,8 +841,8 @@
 					>
 						<option value="">Select age group</option>
 						{#each availableAgeGroups as val}
-							{@const { isIndented, text: ageLabel } = parseIndentationPrefix($ageGroupValToLab.get(val) || val)}
-							<option value={val}>{isIndented ? '    ' + ageLabel : ageLabel}</option>
+							{@const { level, text: ageLabel } = parseIndentationPrefix($ageGroupValToLab.get(val) || val)}
+							<option value={val}>{'    '.repeat(level) + ageLabel}</option>
 						{/each}
 					</select>
 				</div>
@@ -866,8 +866,8 @@
 							{lmAgeGroup ? 'Select syndrome' : 'Select age group first'}
 						</option>
 						{#each availableSyndromes as val}
-							{@const { isIndented, text: synLabel } = parseIndentationPrefix($syndromeValToLab.get(val) || val)}
-							<option value={val}>{isIndented ? '    ' + synLabel : synLabel}</option>
+							{@const { level, text: synLabel } = parseIndentationPrefix($syndromeValToLab.get(val) || val)}
+							<option value={val}>{'    '.repeat(level) + synLabel}</option>
 						{/each}
 					</select>
 				</div>

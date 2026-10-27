@@ -7,6 +7,7 @@ export {
   isLoading,
   loadingMessage,
   dataError,
+  skippedRowsCount,
   pathogenColors,
   dataUpdateDate
 } from '$lib/stores/data.store';
