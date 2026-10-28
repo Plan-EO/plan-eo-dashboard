@@ -11,6 +11,8 @@ import {
   ageGroupLabToVal,
   syndromeValToLab,
   syndromeLabToVal,
+  pathogenValToLab,
+  pathogenLabToVal,
   clearFilterCache
 } from '$lib/stores/filter.store';
 import { convertCsvToGeoJson } from './geoJsonConverter';
@@ -144,6 +146,8 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
       const ageLabToVal = new Map<string, string>();
       const synValToLab = new Map<string, string>();
       const synLabToVal = new Map<string, string>();
+      const pathValToLab = new Map<string, string>();
+      const pathLabToVal = new Map<string, string>();
 
       // Debug: Log first few rows to see actual data (disabled)
       // console.log('First 3 rows of CSV data:', result.data.slice(0, 3));
@@ -153,9 +157,15 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
         // Check if this is actually CSV data (has expected fields)
         if (row && typeof row === 'object') {
           
-          // Extract pathogen
+          // Extract pathogen, plus its PATH_VAL (sort order) if present
           if (row.Pathogen && typeof row.Pathogen === 'string') {
             pathogenSet.add(row.Pathogen);
+            if (row.PATH_VAL) {
+              const name = row.Pathogen;
+              const val = String(row.PATH_VAL);
+              pathValToLab.set(val, name);
+              pathLabToVal.set(name, val);
+            }
           }
 
           // Extract age group VAL and create mappings
@@ -265,6 +275,8 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
       ageGroupLabToVal.set(ageLabToVal);
       syndromeValToLab.set(synValToLab);
       syndromeLabToVal.set(synLabToVal);
+      pathogenValToLab.set(pathValToLab);
+      pathogenLabToVal.set(pathLabToVal);
       
       // Set default selections if nothing is selected
       const selectedPathogensValue = get(selectedPathogens);

@@ -12,6 +12,11 @@ export const ageGroupValToLab = writable<Map<string, string>>(new Map());
 export const ageGroupLabToVal = writable<Map<string, string>>(new Map());
 export const syndromeValToLab = writable<Map<string, string>>(new Map());
 export const syndromeLabToVal = writable<Map<string, string>>(new Map());
+// Pathogen filtering/indexing stays name-keyed (selectedPathogens stores the
+// Pathogen name itself, not a VAL) -- this mapping exists purely so the
+// Pathogens panel can sort by PATH_VAL instead of alphabetically.
+export const pathogenValToLab = writable<Map<string, string>>(new Map());
+export const pathogenLabToVal = writable<Map<string, string>>(new Map());
 
 // Selected filters stores - these store VAL values for age/syndrome, pathogen names for pathogens
 export const selectedPathogens = writable<Set<string>>(new Set());

@@ -10,6 +10,7 @@
 		selectedSyndromes,
 		ageGroupValToLab,
 		syndromeValToLab,
+		pathogenLabToVal,
 		ageGroupCounts,
 		syndromeCounts,
 		pathogenCounts,
@@ -31,7 +32,7 @@
 		loadFilterRasterMappings
 	} from '../store';
 	import { visualizationOptions } from '../store/visualizationOptions';
-	import { formatDropdownText, parseIndentationPrefix } from '../utils/textFormatter';
+	import { formatDropdownText, parseIndentationPrefix, sortByValField } from '../utils/textFormatter';
 	import type { VisualizationType } from '../store';
 	import type { RasterLayer } from '$lib/types';
 	import { onMount, onDestroy } from 'svelte';
@@ -218,7 +219,10 @@
 			})
 	] as ActiveLayer[];
 
-	$: sortedPathogens = Array.from($pathogens || []).sort();
+	$: sortedPathogens = sortByValField(
+		Array.from($pathogens || []),
+		(pathogen) => $pathogenLabToVal.get(pathogen)
+	);
 
 	$: availableAgeGroups = activePathogen
 		? Array.from($ageGroups || []).filter((v) => ($ageGroupCounts.get(v) || 0) > 0)
@@ -692,10 +696,12 @@
 				{#each sortedPathogens as pathogen}
 					{@const isActive = activePathogen === pathogen}
 					{@const count = $pathogenCounts.get(pathogen) || 0}
+					{@const { level } = parseIndentationPrefix(pathogen)}
 					<button
-						class="flex w-full items-center justify-between px-2 py-1 text-left text-xs transition-colors {isActive
+						class="flex w-full items-center justify-between py-1 text-left text-xs transition-colors {isActive
 							? 'bg-warning/10 text-warning font-medium'
 							: 'hover:bg-white/60 text-base-content'}"
+						style="padding-left: {8 + level * 16}px; padding-right: 8px;"
 						onclick={() => activatePathogen(pathogen)}
 					>
 						<span class="flex items-start gap-2">
