@@ -115,12 +115,17 @@
 		// Disable raster auto-show immediately so URL-restored filters don't trigger rasters
 		rasterVisualizationEnabled.set(false);
 
-		// Clear any filter state restored from the URL
-		selectedPathogens.set(new Set());
-		selectedAgeGroups.set(new Set());
-		selectedSyndromes.set(new Set());
-		clearFilterCache();
-		handleFilterChange();
+		// NOTE: this used to also clear selectedPathogens/AgeGroups/Syndromes here and
+		// fire an un-awaited handleFilterChange() ("clear filter state restored from the
+		// URL"). That's dead defensively: parseUrlFilters is only ever called with
+		// applyFilterStores: false (see MapInitializer.ts), so URL params never reach
+		// these stores in the first place — the only thing that can already be sitting
+		// in them at this point is dataLoader.ts's own legitimate auto-applied defaults
+		// (Campylobacter + PSAC + Diarrhea). Clearing-then-fire-and-forget-updating here
+		// raced applyDefaults() below: if points were already added by the time this ran,
+		// the stray handleFilterChange() could apply the just-cleared (unfiltered) state
+		// to the map *after* applyDefaults() finished, leaving clusters showing
+		// unfiltered data despite the UI reporting the correct filter. Removed.
 
 		// Strip filter params from the URL through SvelteKit's router (keep style/center/zoom)
 		if (typeof window !== 'undefined') {
