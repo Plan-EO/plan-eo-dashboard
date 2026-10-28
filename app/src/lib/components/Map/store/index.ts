@@ -24,7 +24,9 @@ export {
   ageGroupValToLab,
   ageGroupLabToVal,
   syndromeValToLab,
-  syndromeLabToVal
+  syndromeLabToVal,
+  pathogenValToLab,
+  pathogenLabToVal
 } from '$lib/stores/filter.store';
 export {
   visualizationType,
