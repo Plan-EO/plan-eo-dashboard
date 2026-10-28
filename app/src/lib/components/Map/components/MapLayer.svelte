@@ -289,6 +289,27 @@
 			.getClusterExpansionZoom(clusterId)
 			.then((zoom: number) => {
 				if (!map) return;
+
+				// PROTOTYPE (easy to remove): a "stuck" cluster (see handleClusterClick)
+				// has nothing to zoom to -- expansionZoom is just Supercluster's
+				// maxZoom+1 fallback for a cluster that can never actually split, since
+				// every point is at the same coordinates. Zooming there anyway jumps
+				// past clusterMaxZoom into unclustered points-layer, where all those
+				// coincident points render stacked at the exact same pixel -- a
+				// jarring zoom into what looks like a single, oddly-colored dot
+				// (each point's own design color blending through the others'
+				// opacity). Spiderfy instead, same as a single click.
+				if (zoom > 14) {
+					source
+						.getClusterLeaves(clusterId, Infinity, 0)
+						.then((leaves: any[]) => {
+							if (!leaves || leaves.length === 0 || !map) return;
+							spiderfyCluster(map, coordinates, feature.id, leaves, handleDotClick);
+						})
+						.catch((err: any) => console.error('Failed to get cluster leaves:', err));
+					return;
+				}
+
 				map.easeTo({ center: coordinates, zoom });
 			})
 			.catch((err: any) => console.error('Failed to get cluster expansion zoom:', err));
