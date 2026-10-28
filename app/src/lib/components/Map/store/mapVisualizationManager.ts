@@ -4,13 +4,14 @@ import type { PointFeatureCollection } from '$lib/types';
 import { visualizationType, type VisualizationType } from '$lib/stores/map.store';
 import { isLoading, loadingMessage } from '$lib/stores/data.store';
 import { filteredPointsData } from '$lib/stores/filter.store';
-import { 
+import {
   mapInstance,
   pointsAddedToMap,
   isUpdatingVisualization,
   isProgrammaticSwitching,
   isAdjustingLayerOrder,
-  setPointsAddedToMap
+  setPointsAddedToMap,
+  getFilterGeneration
 } from '$lib/stores/mapState.store';
 import {
   createPieChartImage,
@@ -68,7 +69,8 @@ export async function updateMapVisualization(
   map: MaplibreMap | null,
   filteredData: PointFeatureCollection,
   vizType: VisualizationType,
-  pointsAdded: boolean
+  pointsAdded: boolean,
+  expectedGeneration?: number
 ): Promise<boolean> {
 
   // Prevent concurrent updates
@@ -127,6 +129,21 @@ export async function updateMapVisualization(
       if (!settled) {
         return false;
       }
+    }
+
+    // A newer filter change has been made since this call captured its
+    // filteredData snapshot — e.g. this call is a leftover from an
+    // intermediate step (activatePathogen clears age/syndrome, then
+    // selectAgeGroup narrows, then selectSyndrome narrows again; each step
+    // fires its own update) that lost the lock race to a fresher one. The
+    // isUpdatingVisualization mutex only serializes writes, it doesn't
+    // guarantee an older queued write can't still land after a newer one
+    // that started later but reached the lock first. Bail out here instead
+    // of overwriting the map with this stale, broader snapshot — whichever
+    // call corresponds to the actual latest generation will apply (or has
+    // already applied) the correct data.
+    if (expectedGeneration !== undefined && expectedGeneration !== getFilterGeneration()) {
+      return false;
     }
 
     // Check if source exists

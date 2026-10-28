@@ -28,6 +28,20 @@ export const isAdjustingLayerOrder = writable<boolean>(false);
 // Error state
 export const mapError = writable<string | null>(null);
 
+// Monotonically increasing version of the *desired* filter state, bumped every
+// time filteredPointsData recomputes (see the subscriber below). The
+// isUpdatingVisualization mutex only serializes writes to the map — it does not
+// guarantee an older, already-superseded update can't still win the lock and
+// land after a newer one. handleFilterChange() captures this value alongside
+// its filteredPointsData read, and updateMapVisualization() re-checks it right
+// before actually writing: if the generation has moved on since the call
+// started, something newer has already (or will) apply the current desired
+// state, so this call bails out instead of clobbering it with stale data.
+let filterGeneration = 0;
+export function getFilterGeneration(): number {
+  return filterGeneration;
+}
+
 // Derived store: Is map loaded and ready?
 export const mapLoaded = derived(
   [mapInstance, mapIsReady],
@@ -234,8 +248,11 @@ export async function handleFilterChange(retries = 0): Promise<void> {
 
   try {
     const { updateMapVisualization } = await getMapVisualizationManager();
+    // Capture generation and data together so they describe the same
+    // snapshot of the user's filter selection.
+    const myGeneration = filterGeneration;
     const data = get(filteredPointsData);
-    await updateMapVisualization(map, data, vizType, pointsAdded);
+    await updateMapVisualization(map, data, vizType, pointsAdded, myGeneration);
   } catch (error) {
     console.error('Error updating filters:', error);
   }
@@ -268,6 +285,10 @@ let previousDataLength = 0;
 let previousFilterState = '';
 
 filteredPointsData.subscribe((data) => {
+  // Every recompute represents a new desired filter state, regardless of
+  // whether this particular firing goes on to call handleFilterChange below.
+  filterGeneration++;
+
   const hasData = data?.features?.length > 0;
   const currentDataLength = data?.features?.length || 0;
   const pointsAdded = get(pointsAddedToMap);
