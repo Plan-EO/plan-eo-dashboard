@@ -1,6 +1,11 @@
 {
   "files": [
     {
+      "fileName": "2026-10-28_Plan-EO_Dashboard_point_data.csv",
+      "date": "2026-10-28",
+      "displayDate": "October 28, 2026"
+    },
+    {
       "fileName": "2026-10-27_Plan-EO_Dashboard_point_data.csv",
       "date": "2026-10-27",
       "displayDate": "October 27, 2026"
@@ -16,6 +21,6 @@
       "displayDate": "September 1, 2025"
     }
   ],
-  "lastUpdated": "2026-10-27T00:00:00.000Z",
+  "lastUpdated": "2026-10-28T00:00:00.000Z",
   "generatedBy": "manual"
 }
