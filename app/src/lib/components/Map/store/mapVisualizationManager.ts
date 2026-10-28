@@ -309,7 +309,16 @@ function addClusterLayers(map: MaplibreMap, visibility: 'visible' | 'none') {
             ],
             ['case', ['boolean', ['feature-state', 'hover'], false], 6, 0]
           ] as any,
-          'circle-opacity': 0.9,
+          // PROTOTYPE (easy to revert): fade a cluster down near-invisible while
+          // its points are spiderfied, rather than hiding it outright -- leaves
+          // a faint center dot behind the fanned-out leaves, matching the
+          // reference site's look. See spiderfy.ts for where 'spiderfied'
+          // feature-state gets set/cleared.
+          'circle-opacity': [
+            'case', ['boolean', ['feature-state', 'spiderfied'], false],
+            0.08,
+            0.9
+          ] as any,
           'circle-stroke-width': 2,
           // Darker shade of the same fill grey at each breakpoint, instead of flat black.
           'circle-stroke-color': [
@@ -319,6 +328,14 @@ function addClusterLayers(map: MaplibreMap, visibility: 'visible' | 'none') {
             20,  '#454545',
             50,  '#2e2e2e',
             100, '#171717'
+          ] as any,
+          // PROTOTYPE (easy to revert): circle-stroke-opacity defaults to fully
+          // opaque regardless of circle-opacity, so without this the fill fades
+          // but the outline stays bold -- looks like an empty ring. Fade both.
+          'circle-stroke-opacity': [
+            'case', ['boolean', ['feature-state', 'spiderfied'], false],
+            0.08,
+            1
           ] as any
         }
       });

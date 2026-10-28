@@ -18,6 +18,9 @@
 		setMapReady
 	} from '$lib/stores/mapState.store';
 	// Import removed - visualization switching handled by store
+	// PROTOTYPE (easy to remove): fan out clusters whose points can never be
+	// separated by zooming, instead of just listing them in a popup menu.
+	import { spiderfyCluster, clearSpiderfy, isSpiderfyActive } from '../utils/spiderfy';
 
 	// Props
 	export let map: MaplibreMap | null = null;
@@ -224,22 +227,41 @@
 		if (clusterClickTimer) clearTimeout(clusterClickTimer);
 		clusterClickTimer = setTimeout(() => {
 			clusterClickTimer = null;
-			// Show a popover listing every study currently grouped into this dot.
-			// Queried live from the cluster index, so it reflects whatever the
-			// cluster contains at the current zoom level. maplibre-gl 5's
-			// getClusterLeaves returns a Promise (no callback param).
+
+			// PROTOTYPE (easy to remove): a cluster whose own expansion zoom is
+			// past our source's clusterMaxZoom (14, see mapVisualizationManager.ts)
+			// can never be split further by zooming -- every point inside is at
+			// (or effectively at) the exact same coordinates. Fan those out
+			// instead of showing the list-menu popover.
 			source
-				.getClusterLeaves(clusterId, Infinity, 0)
-				.then((leaves: any[]) => {
-					if (!leaves || leaves.length === 0) return;
-					dispatch('pointclick', {
-						feature: leaves[0],
-						coordinates,
-						properties: leaves[0].properties,
-						multipleFeatures: leaves
-					});
+				.getClusterExpansionZoom(clusterId)
+				.then((expansionZoom: number) => {
+					const isStuck = expansionZoom > 14;
+
+					source
+						.getClusterLeaves(clusterId, Infinity, 0)
+						.then((leaves: any[]) => {
+							if (!leaves || leaves.length === 0) return;
+
+							if (isStuck && map) {
+								spiderfyCluster(map, coordinates, feature.id, leaves, handleDotClick);
+								return;
+							}
+
+							// Show a popover listing every study currently grouped into this dot.
+							// Queried live from the cluster index, so it reflects whatever the
+							// cluster contains at the current zoom level. maplibre-gl 5's
+							// getClusterLeaves returns a Promise (no callback param).
+							dispatch('pointclick', {
+								feature: leaves[0],
+								coordinates,
+								properties: leaves[0].properties,
+								multipleFeatures: leaves
+							});
+						})
+						.catch((err: any) => console.error('Failed to get cluster leaves:', err));
 				})
-				.catch((err: any) => console.error('Failed to get cluster leaves:', err));
+				.catch((err: any) => console.error('Failed to get cluster expansion zoom:', err));
 		}, CLICK_DELAY);
 	}
 
@@ -299,6 +321,19 @@
 			map.on('mouseenter', 'pie-charts', handleMouseEnter);
 			map.on('mouseleave', 'pie-charts', handleMouseLeave);
 		}
+
+		// PROTOTYPE (easy to remove): dismiss an active spiderfy fan-out when the
+		// user clicks anywhere that isn't one of its leaves or another cluster
+		// (which clears it itself via spiderfyCluster's own clearSpiderfy call).
+		map.on('click', handleBackgroundClickForSpiderfy);
+	}
+
+	function handleBackgroundClickForSpiderfy(e: any) {
+		if (!map || !isSpiderfyActive(map)) return;
+		const hits = map.queryRenderedFeatures(e.point, { layers: ['spiderfy-leaves', 'clusters'] });
+		if (hits.length === 0) {
+			clearSpiderfy(map);
+		}
 	}
 
 	// Remove event handlers
@@ -325,6 +360,10 @@
 			map.off('mouseenter', 'pie-charts', handleMouseEnter);
 			map.off('mouseleave', 'pie-charts', handleMouseLeave);
 		}
+
+		// PROTOTYPE (easy to remove): see setupEventHandlers
+		map.off('click', handleBackgroundClickForSpiderfy);
+		clearSpiderfy(map);
 	}
 
 	// Track the last visualization type to detect changes
