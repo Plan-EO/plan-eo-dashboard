@@ -24,11 +24,6 @@ const LEAVES_LAYER_ID = 'spiderfy-leaves';
 // leaves are visually identical to regular unclustered dots.
 const LEAF_RADIUS = 12;
 
-// Below this leaf count, arrange in a circle; at/above it, a spiral (same
-// switchover point commonly used by spiderfy implementations) since a circle
-// gets visually crowded past ~10 points.
-const CIRCLE_SPIRAL_SWITCHOVER = 10;
-
 let activeLeafClickHandler: ((e: any) => void) | null = null;
 let activeInteractionHandler: (() => void) | null = null;
 // The MapLibre-assigned numeric feature.id of the currently-faded cluster
@@ -63,34 +58,65 @@ function generateDesignStrokeColorExpression() {
   return matchExpression;
 }
 
-// Evenly spaced points around a circle of the given pixel radius.
-function pointsInCircle(count: number, separation = 45): [number, number][] {
-  const points: [number, number][] = [];
-  const theta = (Math.PI * 2) / count;
-  for (let i = 0; i < count; i++) {
-    const angle = theta * i;
-    points.push([separation * Math.cos(angle), separation * Math.sin(angle)]);
-  }
-  return points;
-}
+// Gap sequences (degrees, consecutive -- gap[i] is the angle from point i to
+// point i+1) measured directly off the reference site with a protractor, one
+// real example per count. Not a formula: earlier attempts to fit a single
+// spiral/decay curve to small counts (2-3) and large-count behavior (4-5)
+// simultaneously ran into a genuine mathematical tension (see git history on
+// this file) and weren't worth the complexity once the PI confirmed real
+// clusters won't exceed ~5 co-located studies at one site. Each array sums
+// to 360 deg (they're gaps all the way around the circle, not an open arc).
+const MEASURED_GAPS: Record<number, number[]> = {
+  2: [150, 210],
+  3: [100, 145, 115],
+  4: [75, 75, 105, 105],
+  5: [60, 55, 70, 95, 80]
+};
 
-// Archimedean-spiral layout for larger leaf counts, so points don't overlap
-// as the count grows past what a single circle can comfortably hold.
-function pointsInSpiral(
-  count: number,
-  legLengthStart = 25,
-  legLengthFactor = 2.2,
-  separation = 30
-): [number, number][] {
+// Relative leg lengths, same point order/convention as MEASURED_GAPS (start
+// at the 15 deg anchor, walk clockwise). Consistent on the same scale across
+// cluster sizes (confirmed: the 2-point case's legs visually matched the
+// ~.83 value seen as the first entry in both the 4- and 5-point cases) --
+// not independently normalized per cluster, so these can share one scale
+// factor below rather than needing separate per-count scaling.
+const MEASURED_RELATIVE_RADII: Record<number, number[]> = {
+  2: [0.83, 0.83],
+  3: [0.84, 1, 0.6],
+  4: [0.83, 1, 0.81, 0.58],
+  5: [0.83, 1, 0.94, 0.68, 0.57]
+};
+
+// Scales relative radii to pixels so that the smallest value observed across
+// all four measured sets (0.57, in the 5-point case) still clears a safe
+// floor -- comfortably more than 2x LEAF_RADIUS so the shortest two legs in
+// any cluster never put their dots close enough to touch.
+const RADIUS_SAFE_FLOOR_PX = 35;
+const SMALLEST_MEASURED_RELATIVE_RADIUS = 0.57;
+const RADIUS_SCALE = RADIUS_SAFE_FLOOR_PX / SMALLEST_MEASURED_RELATIVE_RADIUS;
+
+// Measured consistently across every reference-site example regardless of
+// cluster size: one leg always sits 15 deg clockwise from horizontal. In
+// this formula's convention (angle=0 is horizontal-right, and increasing
+// angle rotates clockwise since screen-pixel y grows downward) that's just
+// the starting angle for point 0 -- no sign flip needed.
+const SPIRAL_START_ANGLE_DEG = 15;
+
+// Places `count` points using the measured gap/radius sequences for that
+// count. Falls back to a plain uniform 360/count circle (at the floor
+// radius) for any count outside the measured 2-5 range -- shouldn't happen
+// per the PI, but cheap insurance against a crash if it does.
+function pointsInSpiral(count: number): [number, number][] {
+  const gaps = MEASURED_GAPS[count] ?? Array(count).fill(360 / count);
+  const relativeRadii = MEASURED_RELATIVE_RADII[count] ?? Array(count).fill(1);
   const points: [number, number][] = [];
-  let legLength = legLengthStart;
-  let angle = 0;
+  let cumulativeAngle = SPIRAL_START_ANGLE_DEG;
   for (let i = 0; i < count; i++) {
-    angle += separation / legLength + i * 0.0005;
-    const x = legLength * Math.cos(angle);
-    const y = legLength * Math.sin(angle);
-    points.push([x, y]);
-    legLength += (Math.PI * 2 * legLengthFactor) / angle;
+    const radius = relativeRadii[i] * RADIUS_SCALE;
+    points.push([
+      radius * Math.cos((cumulativeAngle * Math.PI) / 180),
+      radius * Math.sin((cumulativeAngle * Math.PI) / 180)
+    ]);
+    cumulativeAngle += gaps[i];
   }
   return points;
 }
@@ -149,10 +175,7 @@ export function spiderfyCluster(
   if (leaves.length === 0) return;
 
   const centerPixel = map.project(clusterCoordinates);
-  const offsets =
-    leaves.length < CIRCLE_SPIRAL_SWITCHOVER
-      ? pointsInCircle(leaves.length)
-      : pointsInSpiral(leaves.length);
+  const offsets = pointsInSpiral(leaves.length);
 
   const leafFeatures = leaves.map((leaf, i) => {
     const [dx, dy] = offsets[i];
