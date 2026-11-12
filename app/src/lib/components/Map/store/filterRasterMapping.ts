@@ -37,16 +37,6 @@ export async function loadFilterRasterMappings(): Promise<void> {
       syndrome: layer.syndrome,
       layerId
     });
-
-    // Also map "inpatient" to the same layer (current behavior)
-    if (layer.syndrome === 'Medically attended diarrhea - outpatient') {
-      mappings.push({
-        pathogen: layer.pathogen,
-        ageGroup: layer.ageGroup,
-        syndrome: 'Medically attended diarrhea - inpatient',
-        layerId
-      });
-    }
   }
 
   filterToRasterMappings.set(mappings);
