@@ -41,6 +41,8 @@ export {
   updateRasterLayerVisibility,
   updateRasterLayerIsActive,
   updateRasterLayerOpacity,
+  updateRasterLayerColormap,
+  AVAILABLE_COLORMAPS,
   updateAllRasterLayersOpacity,
   removeRasterLayer,
   fetchAndSetLayerBounds
