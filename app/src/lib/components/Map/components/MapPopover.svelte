@@ -4,6 +4,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import type { PointProperties } from '$lib/types';
 	import { formatItalicText, formatDropdownText } from '../utils/textFormatter';
+	import { getColormapGradientCss, getColormapColorCss } from '../utils/geoTiffProcessor';
 
 	// Props
 	export let map: Map | null = null;
@@ -228,8 +229,18 @@
 		const prevalenceLabel =
 			(props.prevalence && props.prevalence.trim()) || prevalencePercent.toFixed(2) + '%';
 
-		// Determine prevalence color based on decimal value
-		const prevalenceColor = getPrevalenceColor(props.prevalenceValue);
+		// For raster popovers, color the prevalence badge to match the layer's
+		// actual current color scale/orientation instead of a fixed scheme
+		// (point/study popups have no associated raster color scale, so they
+		// keep the fixed low/medium/high/very-high scheme below).
+		const prevalenceColor = props.layerType
+			? getColormapColorCss(
+					prevalencePercent,
+					[props.rescaleMin ?? 0, props.rescaleMax ?? 11],
+					props.colormap,
+					props.colormapReversed
+				)
+			: getPrevalenceColor(props.prevalenceValue);
 
 		// Format pathogen name with italic support
 		const pathogenFormatted = formatItalicText(props.pathogen);
@@ -249,7 +260,7 @@
 		);
 
 		const colorBar = props.layerType
-			? createColorBarHTML(props.rescaleMin ?? 0, props.rescaleMax ?? 11)
+			? createColorBarHTML(props.rescaleMin ?? 0, props.rescaleMax ?? 11, props.colormap, props.colormapReversed)
 			: '';
 
 		return `
@@ -344,22 +355,16 @@
     `;
 	}
 
-	// Build inline viridis color bar HTML for raster popups
-	function createColorBarHTML(minVal: number, maxVal: number): string {
-		const stops = [
-			[0,    'rgb(68,1,84)'],
-			[0.11, 'rgb(72,40,120)'],
-			[0.22, 'rgb(62,73,137)'],
-			[0.33, 'rgb(49,104,142)'],
-			[0.44, 'rgb(38,130,142)'],
-			[0.55, 'rgb(31,158,137)'],
-			[0.66, 'rgb(53,183,121)'],
-			[0.77, 'rgb(109,205,89)'],
-			[0.88, 'rgb(180,222,44)'],
-			[1,    'rgb(253,231,37)']
-		] as [number, string][];
-
-		const gradient = stops.map(([s, c]) => `${c} ${s * 100}%`).join(', ');
+	// Build inline color bar HTML for raster popups, reflecting the layer's
+	// actual currently-selected color scale and orientation (not a hardcoded
+	// viridis bar) -- see LayerManager.svelte's color-scale picker.
+	function createColorBarHTML(
+		minVal: number,
+		maxVal: number,
+		colormap?: string,
+		reversed?: boolean
+	): string {
+		const gradientCss = getColormapGradientCss(colormap, reversed);
 
 		const numTicks = 5;
 		const ticksHTML = Array.from({ length: numTicks }, (_, i) => {
@@ -373,7 +378,7 @@
 
 		return `
 			<div style="margin-top:12px;padding-bottom:10px;border-bottom:1px solid #eee;margin-bottom:8px;">
-				<div style="height:14px;border-radius:3px;border:1px solid #ddd;background:linear-gradient(to right,${gradient});"></div>
+				<div style="height:14px;border-radius:3px;border:1px solid #ddd;background:${gradientCss};"></div>
 				<div style="position:relative;height:22px;margin-top:2px;">${ticksHTML}</div>
 			</div>`;
 	}

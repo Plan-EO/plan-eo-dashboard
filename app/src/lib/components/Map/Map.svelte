@@ -45,7 +45,7 @@
 	import MapLayer from './components/MapLayer.svelte';
 	import LayerManager from './components/LayerManager.svelte';
 	import MapPopover from './components/MapPopover.svelte';
-	import MapLegend from './components/MapLegend.svelte';
+	// import MapLegend from './components/MapLegend.svelte'; // disabled -- see commented-out usage below
 	import MultiPointPopover from './components/MultiPointPopover.svelte';
 	import RasterLegend from './components/RasterLegend.svelte';
 	import RasterDataOverlay from './components/RasterDataOverlay.svelte';
@@ -591,7 +591,9 @@
 				footnoteDetail: metadata?.footnoteDetail || '',
 				layerType: metadata?.type,
 				rescaleMin: (visibleRasterLayer.rescale?.[0] ?? 0) * scaleFactor,
-				rescaleMax: (visibleRasterLayer.rescale?.[1] ?? 1) * scaleFactor
+				rescaleMax: (visibleRasterLayer.rescale?.[1] ?? 1) * scaleFactor,
+				colormap: visibleRasterLayer.colormap,
+				colormapReversed: visibleRasterLayer.colormapReversed
 			};
 
 			popoverCoordinates = clickCoordinates;
@@ -611,6 +613,14 @@
 		popoverCoordinates = null;
 		popoverProperties = null;
 		multiPointFeatures = [];
+	}
+
+	// Same staleness problem as the zoomstart listener above, but for filter
+	// changes: a cluster's list popover was staying open (showing studies that
+	// no longer match) after the user picked a different pathogen/age/syndrome
+	// and the underlying dots had already updated or disappeared.
+	$: if ($filteredPointsData) {
+		closePointPopovers();
 	}
 
 	function handlePointClick(event: CustomEvent) {
@@ -791,9 +801,13 @@
 		{/if}
 	{/if}
 
-	{#if map && isStyleLoaded && $filteredPointsData.features.length > 0}
+	<!-- Design types legend panel: disabled per PI request (always-visible bottom panel
+	     removed from the map). Keeping the component and this call commented out, rather
+	     than deleting them, so the design-type/color-swatch info is easy to reference when
+	     it gets integrated into the Active Layers panel instead. -->
+	<!-- {#if map && isStyleLoaded && $filteredPointsData.features.length > 0}
 		<MapLegend visible={true} />
-	{/if}
+	{/if} -->
 
 	<!-- RasterLegend moved into MapPopover — shown at bottom of raster click popup -->
 
