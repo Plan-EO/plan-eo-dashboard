@@ -61,6 +61,8 @@ export interface PointProperties {
   layerType?: 'Pathogen' | 'Risk Factor';
   rescaleMin?: number;
   rescaleMax?: number;
+  colormap?: string;
+  colormapReversed?: boolean;
 }
 
 
@@ -108,6 +110,7 @@ export interface RasterLayer {
   autoShown?: boolean; // Flag to indicate if layer was automatically shown by filter selection
   metadata?: any; // Store GeoTIFF metadata
   colormap?: string; // Store colormap name (e.g., 'viridis')
+  colormapReversed?: boolean; // If true, flip which end of the color scale represents the highest values
   rescale?: [number, number]; // Min/max values for rescaling
   rasterData?: Float32Array; // Raw raster data values
   width?: number; // Raster width in pixels

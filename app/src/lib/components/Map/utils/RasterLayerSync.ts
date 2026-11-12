@@ -169,20 +169,9 @@ export function syncRasterLayers(
               onLayerAdded();
             }
 
-            // Optionally fit bounds only if specific bounds were used
-            const isGlobalBounds =
-              layer.bounds[0] === -180 &&
-              layer.bounds[1] === -90 &&
-              layer.bounds[2] === 180 &&
-              layer.bounds[3] === 90;
-            if (layer.bounds && !isGlobalBounds) {
-              // Convert bounds to LngLatBoundsLike format
-              const boundsForFit: maplibregl.LngLatBoundsLike = [
-                [layer.bounds[0], layer.bounds[1]],
-                [layer.bounds[2], layer.bounds[3]]
-              ];
-              currentMap?.fitBounds(boundsForFit, { padding: 50, duration: 500 });
-            }
+            // Deliberately not calling fitBounds/flyTo here: adding a raster
+            // layer should preserve the user's current pan/zoom position
+            // rather than jump the map to the layer's full extent.
           }
         } catch (error) {
           console.error(`Raster: Error adding image source/layer ${layerId}:`, error);

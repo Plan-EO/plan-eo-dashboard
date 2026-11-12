@@ -25,6 +25,7 @@ export interface GeoTIFFMetadata {
  */
 export interface ProcessingOptions {
   colormap?: string; // e.g., 'viridis'
+  reversed?: boolean; // If true, flip which end of the scale represents high values
   rescale?: [number, number]; // Min/max values for rescaling
   noDataValue?: number; // Value to treat as transparent
   noDataThreshold?: number; // Threshold for treating values as no-data (e.g., 0.01)
@@ -46,6 +47,107 @@ export const VIRIDIS_COLORMAP = [
   [180, 222, 44], // Yellow-green
   [253, 231, 37] // Yellow
 ];
+
+/**
+ * Approximate "plasma" colormap (dark blue-purple -> orange -> yellow).
+ * Hand-picked stops in the style of matplotlib's plasma, not copied from its
+ * exact lookup table -- fine for now, but re-source from a verified LUT
+ * (e.g. d3-scale-chromatic) if exact scale fidelity ever matters (e.g. for a
+ * publication figure).
+ */
+export const PLASMA_COLORMAP = [
+  [13, 8, 135],
+  [75, 3, 161],
+  [125, 3, 168],
+  [168, 34, 150],
+  [203, 70, 121],
+  [229, 107, 93],
+  [248, 148, 65],
+  [253, 195, 40],
+  [240, 249, 33]
+];
+
+/**
+ * Approximate "magma" colormap (near-black -> purple -> orange -> pale yellow).
+ * Same caveat as PLASMA_COLORMAP above: hand-picked approximation, not an
+ * exact copy of matplotlib's LUT.
+ */
+export const MAGMA_COLORMAP = [
+  [0, 0, 4],
+  [28, 16, 68],
+  [79, 18, 123],
+  [129, 37, 129],
+  [181, 54, 122],
+  [229, 80, 100],
+  [251, 135, 97],
+  [254, 194, 135],
+  [252, 253, 191]
+];
+
+/**
+ * 9-stop scale from a paper the PI shared (Shigella prevalence bins), given
+ * as approximate hex codes and converted to RGB here: dark purple (low) ->
+ * pale peach/orange -> dark brown (high). Not tied to Shigella specifically --
+ * usable for any raster, same as the other scales. Labeled "Paper colorscale"
+ * in the picker (see COLORMAP_LABELS in raster.store.ts) as a placeholder
+ * until there's a more specific name for it.
+ */
+export const PAPER_COLORMAP = [
+  [34, 20, 71],    // #221447 very dark purple
+  [79, 53, 143],   // #4F358F deep purple
+  [123, 117, 169], // #7B75A9 muted purple
+  [166, 162, 202], // #A6A2CA light lavender
+  [249, 222, 183], // #F9DEB7 pale peach
+  [240, 182, 116], // #F0B674 light orange
+  [213, 137, 65],  // #D58941 orange
+  [166, 96, 50],   // #A66032 burnt orange/brown
+  [114, 65, 33]    // #724121 dark brown
+];
+
+/**
+ * Registry of available colormaps, keyed by the name stored on RasterLayer.colormap.
+ * Add new scales here as they're implemented -- the Active Layers color-scale
+ * picker (LayerManager.svelte) reads from this same list.
+ */
+export const COLORMAPS: Record<string, number[][]> = {
+  viridis: VIRIDIS_COLORMAP,
+  plasma: PLASMA_COLORMAP,
+  magma: MAGMA_COLORMAP,
+  paper: PAPER_COLORMAP
+};
+
+export const DEFAULT_COLORMAP = 'paper';
+
+/**
+ * The exact color a given value would be rendered as on the raster, as a
+ * CSS "rgb(...)" string -- for UI elements that should match the raster's
+ * current color scale (e.g. the prevalence badge in MapPopover.svelte),
+ * rather than always using a fixed set of colors.
+ */
+export function getColormapColorCss(
+  value: number,
+  rescale: [number, number],
+  colormapName: string = DEFAULT_COLORMAP,
+  reversed: boolean = false
+): string {
+  const [r, g, b] = getColorFromColormap(value, rescale, colormapName, reversed);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+/**
+ * CSS linear-gradient string previewing a named colormap, for swatches in the
+ * color-scale picker (LayerManager.svelte). Mirrors the reversed logic used
+ * when actually coloring raster pixels, so the swatch matches what's on the map.
+ */
+export function getColormapGradientCss(
+  colormapName: string = DEFAULT_COLORMAP,
+  reversed: boolean = false
+): string {
+  const colormap = COLORMAPS[colormapName] || VIRIDIS_COLORMAP;
+  const ordered = reversed ? [...colormap].slice().reverse() : colormap;
+  const stops = ordered.map(([r, g, b]) => `rgb(${r}, ${g}, ${b})`);
+  return `linear-gradient(to right, ${stops.join(', ')})`;
+}
 
 /**
  * Load a GeoTIFF from a URL and return the image and metadata
@@ -295,30 +397,38 @@ export function validateBounds(bounds: number[], projectionInfo?: string): numbe
 }
 
 /**
- * Get color from the viridis colormap
- * Using the exact same implementation as in GeoTIFFExample.svelte
+ * Get a color from a named colormap, optionally reversed (flips which end of
+ * the scale represents the highest values).
  */
-function getViridisColor(value: number, rescale: [number, number]): [number, number, number] {
+function getColorFromColormap(
+  value: number,
+  rescale: [number, number],
+  colormapName: string = DEFAULT_COLORMAP,
+  reversed: boolean = false
+): [number, number, number] {
+  const colormap = COLORMAPS[colormapName] || VIRIDIS_COLORMAP;
+
   // Normalize value using provided rescale range
   const [minV, maxV] = rescale;
   const denom = maxV - minV === 0 ? 1 : maxV - minV;
-  const rescaledValue = Math.min(1, Math.max(0, (value - minV) / denom));
+  let rescaledValue = Math.min(1, Math.max(0, (value - minV) / denom));
+  if (reversed) rescaledValue = 1 - rescaledValue;
 
   // Map to colormap index
-  const index = rescaledValue * (VIRIDIS_COLORMAP.length - 1);
+  const index = rescaledValue * (colormap.length - 1);
   const lowerIndex = Math.floor(index);
-  const upperIndex = Math.min(VIRIDIS_COLORMAP.length - 1, lowerIndex + 1);
+  const upperIndex = Math.min(colormap.length - 1, lowerIndex + 1);
   const t = index - lowerIndex; // Interpolation factor
 
   // Interpolate between colors
   if (lowerIndex === upperIndex) {
     // Ensure we return a tuple of exactly 3 numbers
-    const color = VIRIDIS_COLORMAP[lowerIndex];
+    const color = colormap[lowerIndex];
     return [color[0], color[1], color[2]];
   }
 
-  const lowerColor = VIRIDIS_COLORMAP[lowerIndex];
-  const upperColor = VIRIDIS_COLORMAP[upperIndex];
+  const lowerColor = colormap[lowerIndex];
+  const upperColor = colormap[upperIndex];
 
   // Ensure we return a tuple of exactly 3 numbers
   return [
@@ -447,7 +557,7 @@ async function processEPSG4326ToMercator(
           imageData.data[outIndex * 4 + 2] = 0;
           imageData.data[outIndex * 4 + 3] = 255;
         } else {
-          const [r, g, b] = getViridisColor(value, rescale);
+          const [r, g, b] = getColorFromColormap(value, rescale, options.colormap, options.reversed);
           imageData.data[outIndex * 4] = r;
           imageData.data[outIndex * 4 + 1] = g;
           imageData.data[outIndex * 4 + 2] = b;
@@ -594,8 +704,8 @@ export async function processGeoTIFF(
           imageData.data[canvasIndex * 4 + 2] = 0; // Blue = 0 (black)
           imageData.data[canvasIndex * 4 + 3] = 255; // Alpha = 255 (opaque)
         } else {
-          // Apply viridis colormap (including for 0 values)
-          const [r, g, b] = getViridisColor(value, rescale);
+          // Apply colormap (including for 0 values)
+          const [r, g, b] = getColorFromColormap(value, rescale, options.colormap, options.reversed);
           imageData.data[canvasIndex * 4] = r;
           imageData.data[canvasIndex * 4 + 1] = g;
           imageData.data[canvasIndex * 4 + 2] = b;
@@ -612,6 +722,48 @@ export async function processGeoTIFF(
   const dataUrl = canvas.toDataURL('image/png');
 
   return { dataUrl, rasterData: rawDataCopy, width, height, rescaleUsed: rescale };
+}
+
+/**
+ * Re-render a canvas data URL from already-decoded raster values. Used when the
+ * user switches color scale or inverts it on an already-loaded layer -- avoids
+ * re-fetching and re-decoding the source GeoTIFF just to recolor it.
+ */
+export function recolorRasterData(
+  rasterData: Float32Array,
+  width: number,
+  height: number,
+  rescale: [number, number],
+  colormap: string = DEFAULT_COLORMAP,
+  reversed: boolean = false
+): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Could not get canvas context');
+
+  const imageData = ctx.createImageData(width, height);
+
+  for (let i = 0; i < width * height; i++) {
+    const value = rasterData[i];
+    if (isNaN(value) || value < -1e10 || value > 1e10) {
+      imageData.data[i * 4] = 0;
+      imageData.data[i * 4 + 1] = 0;
+      imageData.data[i * 4 + 2] = 0;
+      imageData.data[i * 4 + 3] = 0;
+    } else {
+      const [r, g, b] = getColorFromColormap(value, rescale, colormap, reversed);
+      imageData.data[i * 4] = r;
+      imageData.data[i * 4 + 1] = g;
+      imageData.data[i * 4 + 2] = b;
+      imageData.data[i * 4 + 3] = 255;
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return canvas.toDataURL('image/png');
 }
 
 /**

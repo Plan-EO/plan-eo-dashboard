@@ -1,7 +1,27 @@
 import { writable, get } from 'svelte/store';
 import type { RasterLayer } from '$lib/types';
 import { toastStore } from '$lib/stores/toast.store';
-import { loadAndProcessGeoTIFF } from '$lib/components/Map/utils/geoTiffProcessor';
+import { loadAndProcessGeoTIFF, recolorRasterData, COLORMAPS, DEFAULT_COLORMAP } from '$lib/components/Map/utils/geoTiffProcessor';
+
+// Display label overrides for color-scale ids whose auto-derived (title-cased)
+// label isn't what we want shown in the picker. Omit an id here to just
+// title-case it automatically.
+const COLORMAP_LABEL_OVERRIDES: Record<string, string> = {
+  paper: 'Paper' // placeholder name until there's a better one for this scale
+};
+
+// Color scales available in the Active Layers color-scale picker. Keyed by the
+// name stored on RasterLayer.colormap; add an entry here (and to COLORMAPS in
+// geoTiffProcessor.ts) when a new scale is implemented.
+export const AVAILABLE_COLORMAPS: { id: string; label: string }[] = Object.keys(COLORMAPS).map((id) => ({
+  id,
+  label:
+    COLORMAP_LABEL_OVERRIDES[id] ??
+    id
+      .split(/[-_]/)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+}));
 import { loadRasterConfig, getLayerSourceUrl, getLayerId, configToMetadata } from '$lib/services/rasterConfig';
 
 // Main store for all raster layers — starts empty, populated by loadRasterLayersFromConfig()
@@ -35,7 +55,8 @@ export async function loadRasterLayersFromConfig(): Promise<void> {
       bounds: undefined,
       isLoading: false,
       error: null,
-      colormap: 'viridis',
+      colormap: DEFAULT_COLORMAP,
+      colormapReversed: false,
       layerMetadata
     };
     layerMap.set(id, layer);
@@ -58,7 +79,8 @@ export async function addRasterLayerFromUrl(url: string): Promise<void> {
     opacity: 0.8,
     isLoading: true,
     error: null,
-    colormap: 'viridis',
+    colormap: DEFAULT_COLORMAP,
+    colormapReversed: false,
     layerMetadata: undefined
   };
 
@@ -70,7 +92,9 @@ export async function addRasterLayerFromUrl(url: string): Promise<void> {
   try {
     const debugMode = get(rasterDebugMode);
     const { dataUrl, metadata, bounds, rasterData, width, height, rescaleUsed } = await loadAndProcessGeoTIFF(url, {
-      debugMode: debugMode
+      debugMode: debugMode,
+      colormap: tempLayer.colormap,
+      reversed: tempLayer.colormapReversed
     });
     const finalLayer: RasterLayer = {
       ...tempLayer,
@@ -129,7 +153,9 @@ export async function fetchAndSetLayerBounds(layerId: string): Promise<void> {
   try {
     const debugMode = get(rasterDebugMode);
     const { dataUrl, metadata, bounds, rasterData, width, height, rescaleUsed } = await loadAndProcessGeoTIFF(layer.sourceUrl, {
-      debugMode: debugMode
+      debugMode: debugMode,
+      colormap: layer.colormap,
+      reversed: layer.colormapReversed
     });
     rasterLayers.update((currentLayers) => {
       const layerToUpdate = currentLayers.get(layerId);
@@ -178,6 +204,37 @@ export function updateRasterLayerIsActive(id: string, isActive: boolean): void {
       // When deactivating, also stop rendering it on the map
       if (!isActive) layer.isVisible = false;
     }
+    return new Map(layers);
+  });
+}
+
+/**
+ * Change a raster layer's color scale and/or invert it. Recolors from the
+ * already-decoded rasterData cached on the layer, so this doesn't need to
+ * re-fetch or re-decode the source GeoTIFF.
+ */
+export function updateRasterLayerColormap(
+  id: string,
+  updates: { colormap?: string; reversed?: boolean }
+): void {
+  rasterLayers.update((layers) => {
+    const layer = layers.get(id);
+    if (!layer) return layers;
+
+    if (updates.colormap !== undefined) layer.colormap = updates.colormap;
+    if (updates.reversed !== undefined) layer.colormapReversed = updates.reversed;
+
+    if (layer.rasterData && layer.width && layer.height && layer.rescale) {
+      layer.dataUrl = recolorRasterData(
+        layer.rasterData,
+        layer.width,
+        layer.height,
+        layer.rescale,
+        layer.colormap,
+        layer.colormapReversed
+      );
+    }
+
     return new Map(layers);
   });
 }

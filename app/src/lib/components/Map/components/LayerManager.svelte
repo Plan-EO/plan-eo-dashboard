@@ -20,6 +20,8 @@
 		rasterLayers,
 		updateRasterLayerIsActive,
 		updateRasterLayerVisibility,
+		updateRasterLayerColormap,
+		AVAILABLE_COLORMAPS,
 		clearFilterCache,
 		handleFilterChange,
 		mapInstance,
@@ -31,8 +33,8 @@
 		loadRasterLayersFromConfig,
 		loadFilterRasterMappings
 	} from '../store';
-	import { visualizationOptions } from '../store/visualizationOptions';
 	import { formatDropdownText, parseIndentationPrefix, sortByValField } from '../utils/textFormatter';
+	import { getColormapGradientCss, DEFAULT_COLORMAP } from '../utils/geoTiffProcessor';
 	import type { VisualizationType } from '../store';
 	import type { RasterLayer } from '$lib/types';
 	import { onMount, onDestroy } from 'svelte';
@@ -45,7 +47,31 @@
 	let rfOpenSubcategory = ''; // which sub-category is vertically expanded
 	let activeLayersExpanded = true;
 	let expandedLayerDetails = new Set<string>();
-	let layerDateWindows: Record<string, { from: string; to: string }> = {};
+
+	// Color scale picker for raster layers -- rendered as a fixed-position
+	// floating menu (not a nested CSS dropdown) because the Active Layers
+	// panel clips overflow and uses backdrop-blur, which would otherwise
+	// clip or trap an absolutely-positioned dropdown-content list.
+	let colorScaleOpenFor: string | null = null;
+	let colorScalePos = { top: 0, left: 0, width: 0 };
+	let colorScaleMenuEl: HTMLUListElement | null = null;
+
+	function toggleColorScaleDropdown(layerId: string, e: MouseEvent) {
+		e.stopPropagation();
+		if (colorScaleOpenFor === layerId) {
+			colorScaleOpenFor = null;
+			return;
+		}
+		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		colorScalePos = { top: rect.bottom + 4, left: rect.left, width: rect.width };
+		colorScaleOpenFor = layerId;
+	}
+
+	function handleColorScaleDocumentClick(e: MouseEvent) {
+		if (colorScaleOpenFor && colorScaleMenuEl && !colorScaleMenuEl.contains(e.target as Node)) {
+			colorScaleOpenFor = null;
+		}
+	}
 
 	// Risk Factors sub-category definitions — built dynamically from loaded raster config
 	function buildRFSubcategories(layers: Map<string, RasterLayer>): Array<{id: string; label: string; layers: {storeName: string; display: string; description?: string}[]}> {
@@ -100,6 +126,7 @@
 	onMount(() => {
 		loadRasterLayersFromConfig();
 		loadFilterRasterMappings();
+		document.addEventListener('click', handleColorScaleDocumentClick);
 	});
 
 	// Take ownership of display state on startup
@@ -158,13 +185,13 @@
 
 	async function applyDefaults() {
 		pathogensExpanded = true;
-		await activatePathogen('__Campylobacter__');
+		await activatePathogen('Rotavirus');
 		await selectAgeGroup('01_Age_PSAC');
 		await selectSyndrome('02_Synd_Diar');
 		// Wait for any subscriber-triggered handleFilterChange calls (pie chart symbol
 		// generation) to finish before making the layer visible.
 		await new Promise(r => setTimeout(r, 400));
-		// [Monitor] Confirm the default filters (Campylobacter + PSAC + Diarrhea)
+		// [Monitor] Confirm the default filters (Rotavirus + PSAC + Diarrhea)
 		// have actually narrowed the data by the time the layer becomes visible,
 		// rather than still reflecting a broader/unfiltered intermediate state —
 		// suspected cause of inflated landing dot counts. Remove once root-caused.
@@ -176,6 +203,7 @@
 
 	onDestroy(() => {
 		_filterRasterUnsubscribe?.();
+		document.removeEventListener('click', handleColorScaleDocumentClick);
 	});
 
 	$: hasRaster = $autoVisibleRasterLayers.size > 0;
@@ -185,7 +213,6 @@
 		type: 'pathogen' | 'raster';
 		displayName: string;
 		subtitle: string;
-		vizType?: string;
 		onRemove: () => void;
 	};
 
@@ -201,7 +228,6 @@
 					]
 						.filter(Boolean)
 						.join(' · ') || 'All ages / All syndromes',
-					vizType: lmVisualizationType === 'pie-charts' ? 'Pie Charts' : 'Dots',
 					onRemove: removeLayer
 				}] satisfies ActiveLayer[])
 			: []),
@@ -360,12 +386,6 @@
 		await handleFilterChange();
 	}
 
-	function selectVisualizationType(val: VisualizationType) {
-		lmVisualizationType = val;
-		visualizationType.set(val);
-		// Viz type is a style change — applies immediately if layer is already added
-	}
-
 	function showRasterLayers() {
 		rasterVisualizationEnabled.set(true);
 		$autoVisibleRasterLayers.forEach((layerId) => {
@@ -432,22 +452,8 @@
 			expandedLayerDetails.delete(id);
 		} else {
 			expandedLayerDetails.add(id);
-			initLayerDateWindow(id);
 		}
 		expandedLayerDetails = expandedLayerDetails;
-	}
-
-	function initLayerDateWindow(id: string) {
-		if (!layerDateWindows[id]) {
-			const today = new Date();
-			const yearAgo = new Date(today);
-			yearAgo.setFullYear(today.getFullYear() - 1);
-			layerDateWindows[id] = {
-				from: yearAgo.toISOString().split('T')[0],
-				to: today.toISOString().split('T')[0]
-			};
-			layerDateWindows = layerDateWindows;
-		}
 	}
 
 	// Split "Prefix E. coli (Abbrev)" onto two lines for readability
@@ -612,52 +618,43 @@
 										<span class="badge badge-xs {layer.type === 'pathogen' ? 'badge-secondary' : 'badge-warning'} badge-outline">
 											{layer.type === 'pathogen' ? 'Point Data' : 'Raster'}
 										</span>
-										{#if layer.type === 'pathogen' && layer.vizType}
-											<span class="badge badge-xs badge-ghost">{layer.vizType}</span>
-										{/if}
 									</div>
 									<p class="text-[10px] text-base-content/60 leading-snug">{layer.subtitle}</p>
 
-									<!-- Date Window (demo) -->
-									<div>
-										<div class="flex items-center gap-1 mb-1">
-											<p class="text-[10px] font-semibold text-base-content/70 uppercase tracking-wide">Date Window</p>
-											<span class="badge badge-xs badge-ghost text-[9px]">Demo</span>
-										</div>
-										<div class="flex flex-col gap-1">
-											<div class="flex items-center gap-1">
-												<span class="text-[10px] text-base-content/50 w-5">From</span>
-												<input
-													type="date"
-													class="input input-xs input-bordered flex-1 bg-white/80 text-[10px] h-6 min-h-0"
-													value={layerDateWindows[layer.id]?.from ?? ''}
-													onchange={(e) => {
-														layerDateWindows[layer.id] = {
-															...layerDateWindows[layer.id],
-															from: e.currentTarget.value
-														};
-														layerDateWindows = layerDateWindows;
-													}}
-												/>
-											</div>
-											<div class="flex items-center gap-1">
-												<span class="text-[10px] text-base-content/50 w-5">To</span>
-												<input
-													type="date"
-													class="input input-xs input-bordered flex-1 bg-white/80 text-[10px] h-6 min-h-0"
-													value={layerDateWindows[layer.id]?.to ?? ''}
-													onchange={(e) => {
-														layerDateWindows[layer.id] = {
-															...layerDateWindows[layer.id],
-															to: e.currentTarget.value
-														};
-														layerDateWindows = layerDateWindows;
-													}}
-												/>
+									<!-- Color Scale (raster layers only) -->
+									{#if layer.type === 'raster'}
+										{@const rLayer = $rasterLayers.get(layer.id)}
+										<div>
+											<p class="text-[10px] font-semibold text-base-content/70 uppercase tracking-wide mb-1">Colormap</p>
+											<div class="flex items-center gap-1.5">
+												<button
+													type="button"
+													class="flex flex-1 items-center gap-1.5 rounded-md border border-base-300 bg-white/80 px-1.5 min-w-0"
+													style="height: 1.625rem; min-height: 1.625rem;"
+													onclick={(e) => toggleColorScaleDropdown(layer.id, e)}
+												>
+													<span
+														class="h-2.5 w-5 flex-shrink-0 rounded-sm border border-black/10"
+														style="background: {getColormapGradientCss(rLayer?.colormap ?? DEFAULT_COLORMAP, rLayer?.colormapReversed)};"
+													></span>
+													<span class="flex-1 truncate text-[10px] text-left">
+														{AVAILABLE_COLORMAPS.find((c) => c.id === (rLayer?.colormap ?? DEFAULT_COLORMAP))?.label ?? 'Paper'}
+													</span>
+												</button>
+												<button
+													class="btn px-2 {rLayer?.colormapReversed ? 'btn-secondary' : 'btn-ghost border border-base-300'}"
+													style="height: 1.625rem; min-height: 1.625rem;"
+													title={rLayer?.colormapReversed ? 'Un-reverse color scale' : 'Reverse color scale'}
+													aria-label={rLayer?.colormapReversed ? 'Un-reverse color scale' : 'Reverse color scale'}
+													onclick={() => updateRasterLayerColormap(layer.id, { reversed: !rLayer?.colormapReversed })}
+												>
+													<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+														<path stroke-linecap="round" stroke-linejoin="round" d="M7 16l-4-4m0 0l4-4m-4 4h18m-4 8l4-4m0 0l-4-4" />
+													</svg>
+												</button>
 											</div>
 										</div>
-										<p class="text-[9px] text-base-content/30 italic mt-1">Filtering by date range coming soon</p>
-									</div>
+									{/if}
 								</div>
 							{/if}
 						</div>
@@ -883,14 +880,15 @@
 					</select>
 				</div>
 
-				<!-- Display (always visible) -->
+				<!-- Display (grayed out until a syndrome is selected -- guides the user
+				     through Age Group -> Syndrome -> Display in order) -->
 				<div>
 					<p class="text-primary mb-1 text-xs font-medium uppercase tracking-wide">
 						Display
 					</p>
 					<div class="space-y-1.5">
-						<!-- Data Points row -->
-						<div class="border-base-300 rounded-md border bg-white/50 px-2.5 py-1.5">
+						<!-- Data Points row (grayed out until a syndrome is selected) -->
+						<div class="border-base-300 rounded-md border px-2.5 py-1.5 {lmSyndrome ? 'bg-white/50' : 'opacity-40'}">
 							<div class="flex items-center justify-between">
 								<span class="flex items-center gap-1.5 text-xs">
 									<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
@@ -901,9 +899,10 @@
 									Data Points
 								</span>
 								<button
-									class="flex h-5 w-5 items-center justify-center rounded-full text-white transition-colors {layerAdded && dataPointsToggled ? 'bg-error/80 hover:bg-error' : 'bg-secondary/80 hover:bg-secondary'}"
+									class="flex h-5 w-5 items-center justify-center rounded-full text-white transition-colors {layerAdded && dataPointsToggled ? 'bg-error/80 hover:bg-error' : lmSyndrome ? 'bg-secondary/80 hover:bg-secondary' : 'cursor-not-allowed bg-base-300'}"
 									onclick={toggleDataPoints}
-									title={layerAdded && dataPointsToggled ? 'Remove data points' : 'Add data points'}
+									disabled={!lmSyndrome}
+									title={!lmSyndrome ? 'Select a syndrome first' : layerAdded && dataPointsToggled ? 'Remove data points' : 'Add data points'}
 								>
 									<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
 										{#if layerAdded && dataPointsToggled}
@@ -914,23 +913,10 @@
 									</svg>
 								</button>
 							</div>
-							<!-- Pie Charts / Standard Dots sub-buttons -->
-							<div class="mt-1.5 flex justify-center gap-1">
-								{#each [...visualizationOptions].reverse() as option}
-									<button
-										class="btn h-5 min-h-0 px-2 text-[10px] {lmVisualizationType === option.value
-											? 'btn-primary'
-											: 'border-base-300 btn-ghost border'}"
-										onclick={() => selectVisualizationType(option.value)}
-										title={option.description}
-									>
-										{option.value === 'pie-charts' ? 'Pies' : 'Dots'}
-									</button>
-								{/each}
-							</div>
 						</div>
-						<!-- Raster Layer row (grayed out when unavailable) -->
-						<div class="border-base-300 flex items-center justify-between rounded-md border px-2.5 py-1.5 {hasRaster ? 'bg-white/50' : 'opacity-40'}">
+						<!-- Raster Layer row (grayed out until a syndrome is selected, and
+						     stays grayed out if this combination has no raster) -->
+						<div class="border-base-300 flex items-center justify-between rounded-md border px-2.5 py-1.5 {hasRaster && lmSyndrome ? 'bg-white/50' : 'opacity-40'}">
 							<span class="flex items-center gap-1.5 text-xs">
 								<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
@@ -938,10 +924,10 @@
 								Raster Layer
 							</span>
 							<button
-								class="flex h-5 w-5 items-center justify-center rounded-full text-white transition-colors {layerAdded && rasterToggled ? 'bg-error/80 hover:bg-error' : hasRaster ? 'bg-secondary/80 hover:bg-secondary' : 'cursor-not-allowed bg-base-300'}"
+								class="flex h-5 w-5 items-center justify-center rounded-full text-white transition-colors {layerAdded && rasterToggled ? 'bg-error/80 hover:bg-error' : hasRaster && lmSyndrome ? 'bg-secondary/80 hover:bg-secondary' : 'cursor-not-allowed bg-base-300'}"
 								onclick={toggleRaster}
-								disabled={!hasRaster}
-								title={!hasRaster ? 'No raster available' : layerAdded && rasterToggled ? 'Remove raster layer' : 'Add raster layer'}
+								disabled={!hasRaster || !lmSyndrome}
+								title={!lmSyndrome ? 'Select a syndrome first' : !hasRaster ? 'No raster available' : layerAdded && rasterToggled ? 'Remove raster layer' : 'Add raster layer'}
 							>
 								<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
 									{#if layerAdded && rasterToggled}
@@ -959,5 +945,34 @@
 		</div>
 	{/if}
 
+	<!-- Color scale floating menu: rendered as a sibling here (outside the
+	     backdrop-blur/overflow-hidden panels above) and fixed-positioned next
+	     to whichever trigger opened it, so it isn't clipped or trapped by them. -->
+	{#if colorScaleOpenFor}
+		{@const openLayer = $rasterLayers.get(colorScaleOpenFor)}
+		<ul
+			bind:this={colorScaleMenuEl}
+			class="menu z-[9999] rounded-md border border-base-300 bg-white/95 p-1 shadow-lg"
+			style="position: fixed; top: {colorScalePos.top}px; left: {colorScalePos.left}px; width: {colorScalePos.width}px;"
+		>
+			{#each AVAILABLE_COLORMAPS as cm}
+				<li>
+					<button
+						class="flex items-center gap-1.5 rounded px-1.5 py-1 {((openLayer?.colormap ?? DEFAULT_COLORMAP) === cm.id) ? 'bg-primary/10 font-medium' : ''}"
+						onclick={() => {
+							updateRasterLayerColormap(colorScaleOpenFor as string, { colormap: cm.id });
+							colorScaleOpenFor = null;
+						}}
+					>
+						<span
+							class="h-2.5 w-5 flex-shrink-0 rounded-sm border border-black/10"
+							style="background: {getColormapGradientCss(cm.id, openLayer?.colormapReversed)};"
+						></span>
+						<span class="text-[10px]">{cm.label}</span>
+					</button>
+				</li>
+			{/each}
+		</ul>
+	{/if}
 
 </div>

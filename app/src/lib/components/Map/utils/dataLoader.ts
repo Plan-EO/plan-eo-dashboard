@@ -285,7 +285,7 @@ export async function loadPointsData(url: string, forceReload: boolean = false):
       
       if (selectedPathogensValue.size === 0 && selectedAgeGroupsValue.size === 0 && selectedSyndromesValue.size === 0) {
         // Set default selections
-        const defaultPathogen = Array.from(pathogenSet).find(p => p.includes('Campylobacter')) || Array.from(pathogenSet)[0];
+        const defaultPathogen = Array.from(pathogenSet).find(p => p.includes('Rotavirus')) || Array.from(pathogenSet)[0];
         
         // Find default age group VAL for "<5 years"
         let defaultAgeVal: string | undefined;
