@@ -85,6 +85,7 @@
     "@types/sortablejs": "^1.15.8",
     "bcryptjs": "^2.4.3",
     "chart.js": "^4.4.7",
+    "colorbrewer": "^1.7.0",
     "date-fns": "^4.1.0",
     "dompurify": "^3.2.6",
     "geotiff": "^2.1.1",

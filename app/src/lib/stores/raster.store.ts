@@ -7,7 +7,20 @@ import { loadAndProcessGeoTIFF, recolorRasterData, COLORMAPS, DEFAULT_COLORMAP }
 // label isn't what we want shown in the picker. Omit an id here to just
 // title-case it automatically.
 const COLORMAP_LABEL_OVERRIDES: Record<string, string> = {
-  paper: 'Paper' // placeholder name until there's a better one for this scale
+  paper: 'Paper', // placeholder name until there's a better one for this scale
+  // ColorBrewer multi-hue sequential schemes (ids are the scheme name lowercased)
+  bugn: 'Blue-Green',
+  bupu: 'Blue-Purple',
+  gnbu: 'Green-Blue',
+  orrd: 'Orange-Red',
+  pubu: 'Purple-Blue',
+  pubugn: 'Purple-Blue-Green',
+  purd: 'Purple-Red',
+  rdpu: 'Red-Purple',
+  ylgn: 'Yellow-Green',
+  ylgnbu: 'Yellow-Green-Blue',
+  ylorbr: 'Yellow-Orange-Brown',
+  ylorrd: 'Yellow-Orange-Red'
 };
 
 // Color scales available in the Active Layers color-scale picker. Keyed by the

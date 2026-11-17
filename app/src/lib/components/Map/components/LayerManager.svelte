@@ -53,7 +53,7 @@
 	// panel clips overflow and uses backdrop-blur, which would otherwise
 	// clip or trap an absolutely-positioned dropdown-content list.
 	let colorScaleOpenFor: string | null = null;
-	let colorScalePos = { top: 0, left: 0, width: 0 };
+	let colorScalePos = { top: 0, left: 0, width: 0, maxHeight: 420 };
 	let colorScaleMenuEl: HTMLUListElement | null = null;
 
 	function toggleColorScaleDropdown(layerId: string, e: MouseEvent) {
@@ -63,7 +63,17 @@
 			return;
 		}
 		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-		colorScalePos = { top: rect.bottom + 4, left: rect.left, width: rect.width };
+		// Cap the menu's height to whatever room is actually left below the
+		// trigger -- it's position:fixed, so content that extends past the
+		// viewport edge can't be reached by scrolling the page, only by
+		// scrolling inside the menu itself (which needs a correct max-height).
+		const spaceBelow = window.innerHeight - rect.bottom - 12;
+		colorScalePos = {
+			top: rect.bottom + 4,
+			left: rect.left,
+			width: rect.width,
+			maxHeight: Math.max(150, Math.min(420, spaceBelow))
+		};
 		colorScaleOpenFor = layerId;
 	}
 
@@ -952,8 +962,8 @@
 		{@const openLayer = $rasterLayers.get(colorScaleOpenFor)}
 		<ul
 			bind:this={colorScaleMenuEl}
-			class="menu z-[9999] rounded-md border border-base-300 bg-white/95 p-1 shadow-lg"
-			style="position: fixed; top: {colorScalePos.top}px; left: {colorScalePos.left}px; width: {colorScalePos.width}px;"
+			class="menu z-[9999] flex-nowrap overflow-y-auto rounded-md border border-base-300 bg-white/95 p-1 shadow-lg"
+			style="position: fixed; top: {colorScalePos.top}px; left: {colorScalePos.left}px; width: {colorScalePos.width}px; max-height: {colorScalePos.maxHeight}px;"
 		>
 			{#each AVAILABLE_COLORMAPS as cm}
 				<li>
