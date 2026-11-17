@@ -1,5 +1,6 @@
 // Import geotiff from CDN for static deployments
 import { browser } from '$app/environment';
+import colorbrewer from 'colorbrewer';
 
 // Access the global geotiff library that's loaded via CDN in app.html
 declare global {
@@ -104,6 +105,31 @@ export const PAPER_COLORMAP = [
   [114, 65, 33]    // #724121 dark brown
 ];
 
+function hexToRgb(hex: string): number[] {
+  const n = parseInt(hex.replace('#', ''), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/**
+ * ColorBrewer's sequential + single-hue schemes (the PI's preferred source,
+ * matching the ramp options he's used to from ArcGIS). Using the 9-class
+ * variant of each for the smoothest gradient. Diverging/qualitative schemes
+ * are excluded -- they're designed for different kinds of data (data with a
+ * meaningful midpoint, or categorical data), not a continuous prevalence scale.
+ * https://colorbrewer2.org
+ */
+const COLORBREWER_SEQUENTIAL_SCHEMES = [
+  ...colorbrewer.schemeGroups.sequential,
+  ...colorbrewer.schemeGroups.singlehue
+];
+
+const COLORBREWER_COLORMAPS: Record<string, number[][]> = Object.fromEntries(
+  COLORBREWER_SEQUENTIAL_SCHEMES.map((name) => [
+    name.toLowerCase(),
+    (colorbrewer as Record<string, Record<number, string[]>>)[name][9].map(hexToRgb)
+  ])
+);
+
 /**
  * Registry of available colormaps, keyed by the name stored on RasterLayer.colormap.
  * Add new scales here as they're implemented -- the Active Layers color-scale
@@ -113,6 +139,7 @@ export const COLORMAPS: Record<string, number[][]> = {
   viridis: VIRIDIS_COLORMAP,
   plasma: PLASMA_COLORMAP,
   magma: MAGMA_COLORMAP,
+  ...COLORBREWER_COLORMAPS,
   paper: PAPER_COLORMAP
 };
 
