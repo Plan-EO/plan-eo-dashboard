@@ -1,61 +1,45 @@
-// PROTOTYPE: fan out ("spiderfy") a cluster whose points are all at (or very
-// near) the exact same coordinates, so zooming in can never visually separate
-// them. This is a self-contained, additive module -- nothing elsewhere in the
-// app depends on it, so removing this file plus the few call sites wired into
-// MapLayer.svelte fully reverts the feature.
+// Fan out ("spiderfy") a cluster whose points are all at (or very near) the
+// exact same coordinates, so zooming in can never visually separate them.
 //
 // Deliberately NOT using a third-party spiderfy library: the obvious option
 // (@nazka/map-gl-js-spiderfy) hard-requires the target cluster layer to be
 // type 'symbol' and always renders its fanned-out "leaves" as symbol/icon
 // layers, which doesn't fit our circle-type `clusters`/`points-layer` setup
-// without generating per-design-type icon images first. This implements the
-// same circle/spiral layout math directly as plain MapLibre circle + line
-// layers, matching our existing dot styling with no new asset generation.
+// without generating per-design-type icon images first. This draws the leaves
+// as plain MapLibre circle + line layers, reusing the points-layer styling.
 
 import type { Map as MaplibreMap, MapGeoJSONFeature } from 'maplibre-gl';
-import { getDesignColors, getDefaultColor } from './pieChartUtils';
+import {
+  INDIVIDUAL_DOT_RADIUS,
+  generateDesignColorExpression,
+  generateDesignStrokeColorExpression
+} from '../store/mapVisualizationManager';
 
 const LEGS_SOURCE_ID = 'spiderfy-legs-source';
 const LEAVES_SOURCE_ID = 'spiderfy-leaves-source';
 const LEGS_LAYER_ID = 'spiderfy-legs';
-const LEAVES_LAYER_ID = 'spiderfy-leaves';
+export const LEAVES_LAYER_ID = 'spiderfy-leaves';
 
-// Mirrors INDIVIDUAL_DOT_RADIUS in mapVisualizationManager.ts so spiderfied
-// leaves are visually identical to regular unclustered dots.
-const LEAF_RADIUS = 12;
+const LEAF_RADIUS = INDIVIDUAL_DOT_RADIUS;
 
-let activeLeafClickHandler: ((e: any) => void) | null = null;
-let activeInteractionHandler: (() => void) | null = null;
+export interface SpiderfyLeafHandlers {
+  click: (e: any) => void;
+  dblclick: (e: any) => void;
+}
+
+let activeLeafHandlers: SpiderfyLeafHandlers | null = null;
+let activeZoomHandler: (() => void) | null = null;
 // The MapLibre-assigned numeric feature.id of the currently-faded cluster
 // circle (distinct from Supercluster's own cluster_id, which isn't usable
 // with setFeatureState). Tracked here so clearSpiderfy can restore it.
 let activeClusterFeatureId: string | number | null = null;
 
-// Duplicated from mapVisualizationManager.ts (not exported there) rather than
-// importing across modules, to keep this prototype fully self-contained.
-function generateDesignColorExpression() {
-  const designColors = getDesignColors();
-  const matchExpression: any[] = ['match', ['get', 'design']];
-  Object.entries(designColors).forEach(([design, color]) => {
-    matchExpression.push(design);
-    matchExpression.push(color);
-  });
-  matchExpression.push(getDefaultColor());
-  return matchExpression;
+function setLeafCursor(e: any) {
+  e.target.getCanvas().style.cursor = 'pointer';
 }
 
-function generateDesignStrokeColorExpression() {
-  const designColors = getDesignColors();
-  const matchExpression: any[] = ['match', ['get', 'design']];
-  Object.keys(designColors)
-    .filter((design) => !design.endsWith('_dark'))
-    .forEach((design) => {
-      const darkColor = designColors[`${design}_dark`] || designColors[design];
-      matchExpression.push(design);
-      matchExpression.push(darkColor);
-    });
-  matchExpression.push(getDefaultColor());
-  return matchExpression;
+function resetLeafCursor(e: any) {
+  e.target.getCanvas().style.cursor = '';
 }
 
 // Gap sequences (degrees, consecutive -- gap[i] is the angle from point i to
@@ -133,24 +117,29 @@ export function clearSpiderfy(map: MaplibreMap): void {
         { spiderfied: false }
       );
     } catch (e) {
-      // Source may have been rebuilt (filter change) since this id was
-      // assigned -- nothing meaningful to restore in that case.
+      // Source may have been rebuilt (filter change, style swap) since this id
+      // was assigned -- nothing meaningful to restore in that case.
     }
     activeClusterFeatureId = null;
   }
 
-  if (!isSpiderfyActive(map)) return;
+  // Detach listeners unconditionally: a base map style swap removes our layers
+  // and sources but not layer-scoped listeners, which would otherwise pile up
+  // and fire once per stale copy on the next spiderfy.
+  if (activeLeafHandlers) {
+    map.off('click', LEAVES_LAYER_ID, activeLeafHandlers.click);
+    map.off('dblclick', LEAVES_LAYER_ID, activeLeafHandlers.dblclick);
+    map.off('mouseenter', LEAVES_LAYER_ID, setLeafCursor);
+    map.off('mouseleave', LEAVES_LAYER_ID, resetLeafCursor);
+    activeLeafHandlers = null;
+    map.getCanvas().style.cursor = '';
+  }
+  if (activeZoomHandler) {
+    map.off('zoomstart', activeZoomHandler);
+    activeZoomHandler = null;
+  }
 
   try {
-    if (activeLeafClickHandler) {
-      map.off('click', LEAVES_LAYER_ID, activeLeafClickHandler);
-      activeLeafClickHandler = null;
-    }
-    if (activeInteractionHandler) {
-      map.off('zoomstart', activeInteractionHandler);
-      activeInteractionHandler = null;
-    }
-
     if (map.getLayer(LEAVES_LAYER_ID)) map.removeLayer(LEAVES_LAYER_ID);
     if (map.getLayer(LEGS_LAYER_ID)) map.removeLayer(LEGS_LAYER_ID);
     if (map.getSource(LEAVES_SOURCE_ID)) map.removeSource(LEAVES_SOURCE_ID);
@@ -161,15 +150,16 @@ export function clearSpiderfy(map: MaplibreMap): void {
 }
 
 // Fan out `leaves` (all sharing ~the same coordinates as `clusterCoordinates`)
-// into a circle/spiral of individually-clickable dots. `onLeafClick` is
+// into a circle/spiral of individually-clickable dots. `leafHandlers.click` is
 // called with the same event shape a normal points-layer click produces, so
-// callers can feed it straight into their existing single-point popover flow.
+// callers can feed it straight into their existing single-point popover flow;
+// `dblclick` should cancel any click pending from the same double-click.
 export function spiderfyCluster(
   map: MaplibreMap,
   clusterCoordinates: [number, number],
   clusterFeatureId: string | number | undefined,
   leaves: MapGeoJSONFeature[],
-  onLeafClick: (e: any) => void
+  leafHandlers: SpiderfyLeafHandlers
 ): void {
   clearSpiderfy(map);
   if (leaves.length === 0) return;
@@ -236,8 +226,11 @@ export function spiderfyCluster(
     return;
   }
 
-  activeLeafClickHandler = onLeafClick;
-  map.on('click', LEAVES_LAYER_ID, activeLeafClickHandler);
+  activeLeafHandlers = leafHandlers;
+  map.on('click', LEAVES_LAYER_ID, leafHandlers.click);
+  map.on('dblclick', LEAVES_LAYER_ID, leafHandlers.dblclick);
+  map.on('mouseenter', LEAVES_LAYER_ID, setLeafCursor);
+  map.on('mouseleave', LEAVES_LAYER_ID, resetLeafCursor);
 
   // Persist through panning -- the leaves/legs are real lng/lat GeoJSON
   // features, so MapLibre repaints them at the correct screen position as the
@@ -245,8 +238,8 @@ export function spiderfyCluster(
   // since the fixed-pixel-radius layout would otherwise look wrong (too
   // large/small relative to the now-differently-scaled map), and because a
   // zoom in may be the user trying to split the cluster for real.
-  activeInteractionHandler = () => clearSpiderfy(map);
-  map.once('zoomstart', activeInteractionHandler);
+  activeZoomHandler = () => clearSpiderfy(map);
+  map.once('zoomstart', activeZoomHandler);
 
   // Fade the original cluster circle down near-invisible while spiderfied
   // (see the 'clusters' layer's circle-opacity expression), instead of

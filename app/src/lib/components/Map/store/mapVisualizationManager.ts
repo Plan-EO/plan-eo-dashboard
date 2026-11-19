@@ -274,7 +274,12 @@ function ensurePointsOnTop(map: MaplibreMap) {
 // dots are sized relative to this so the two stay visually consistent if the
 // cluster radius scale is ever retuned.
 const CLUSTER_MIN_RADIUS = 16;
-const INDIVIDUAL_DOT_RADIUS = Math.round(CLUSTER_MIN_RADIUS * 0.75);
+
+// Highest zoom at which clustered-source still clusters. A cluster whose
+// expansion zoom is past this can never be split by zooming (its points are
+// all at the same coordinates), so MapLayer spiderfies it instead.
+export const CLUSTER_MAX_ZOOM = 14;
+export const INDIVIDUAL_DOT_RADIUS = Math.round(CLUSTER_MIN_RADIUS * 0.75);
 const INDIVIDUAL_DOT_HOVER_BUMP = 3;
 
 // Add the three cluster-mode layers (clusters circle, count label, unclustered point)
@@ -309,11 +314,9 @@ function addClusterLayers(map: MaplibreMap, visibility: 'visible' | 'none') {
             ],
             ['case', ['boolean', ['feature-state', 'hover'], false], 6, 0]
           ] as any,
-          // PROTOTYPE (easy to revert): fade a cluster down near-invisible while
-          // its points are spiderfied, rather than hiding it outright -- leaves
-          // a faint center dot behind the fanned-out leaves, matching the
-          // reference site's look. See spiderfy.ts for where 'spiderfied'
-          // feature-state gets set/cleared.
+          // Fade a cluster near-invisible while its points are spiderfied,
+          // leaving a faint center dot behind the fanned-out leaves. See
+          // spiderfy.ts for where 'spiderfied' feature-state is set/cleared.
           'circle-opacity': [
             'case', ['boolean', ['feature-state', 'spiderfied'], false],
             0.08,
@@ -329,9 +332,8 @@ function addClusterLayers(map: MaplibreMap, visibility: 'visible' | 'none') {
             50,  '#2e2e2e',
             100, '#171717'
           ] as any,
-          // PROTOTYPE (easy to revert): circle-stroke-opacity defaults to fully
-          // opaque regardless of circle-opacity, so without this the fill fades
-          // but the outline stays bold -- looks like an empty ring. Fade both.
+          // circle-stroke-opacity ignores circle-opacity, so fade it too or a
+          // spiderfied cluster looks like an empty ring.
           'circle-stroke-opacity': [
             'case', ['boolean', ['feature-state', 'spiderfied'], false],
             0.08,
@@ -488,7 +490,7 @@ export async function addInitialPointsToMap(
           type: 'geojson',
           data: filteredData,
           cluster: true,
-          clusterMaxZoom: 14,
+          clusterMaxZoom: CLUSTER_MAX_ZOOM,
           clusterRadius: 30,
           generateId: true
         });
@@ -584,7 +586,7 @@ export async function switchVisualizationType(
           type: 'geojson',
           data: filteredData,
           cluster: true,
-          clusterMaxZoom: 14,
+          clusterMaxZoom: CLUSTER_MAX_ZOOM,
           clusterRadius: 30,
           generateId: true
         });
@@ -667,7 +669,7 @@ export async function handleMapContentChange(
 }
 
 // Helper function to generate design color expression
-function generateDesignColorExpression() {
+export function generateDesignColorExpression() {
   const designColors = getDesignColors();
   const matchExpression: any[] = ['match', ['get', 'design']];
 
@@ -683,7 +685,7 @@ function generateDesignColorExpression() {
 // Helper function to generate the individual dots' stroke color expression: each
 // design type's own darker "_dark" swatch (already defined alongside the base
 // colors in pieChartUtils.ts), instead of a flat black outline.
-function generateDesignStrokeColorExpression() {
+export function generateDesignStrokeColorExpression() {
   const designColors = getDesignColors();
   const matchExpression: any[] = ['match', ['get', 'design']];
 
