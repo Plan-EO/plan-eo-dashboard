@@ -22,6 +22,8 @@
 		spiderfyCluster,
 		clearSpiderfy,
 		isSpiderfyActive,
+		isSpiderfiedFeature,
+		zoomSpiderfyIn,
 		LEAVES_LAYER_ID
 	} from '../utils/spiderfy';
 	import { CLUSTER_MAX_ZOOM } from '../store/mapVisualizationManager';
@@ -143,24 +145,50 @@
 		const data = extractPointClickData(e);
 		if (!data) return;
 
+		// Above CLUSTER_MAX_ZOOM a fanned-out group's own points sit faded under
+		// the fan's center; clicking them collapses it, like the faded cluster dot.
+		// (Checked against the source too: spiderfied leaves share this handler and
+		// their ids overlap clustered-source point ids.)
+		const collapsesFan =
+			data.feature.source === 'clustered-source' && isSpiderfiedFeature(data.feature.id);
+
 		if (pointClickTimer) clearTimeout(pointClickTimer);
 		pointClickTimer = setTimeout(() => {
 			pointClickTimer = null;
+			if (collapsesFan) {
+				if (map) clearSpiderfy(map);
+				return;
+			}
 			dispatch('pointclick', data);
 		}, CLICK_DELAY);
 	}
 
 	// Double-click on an individual dot: cancel the pending popover and let
 	// maplibre's native double-click-to-zoom handle the zoom.
-	function handleDotDblClick() {
+	// Past CLUSTER_MAX_ZOOM, double-clicking the faded points under an open fan's
+	// center zooms in around the fan instead, same as its center cluster dot.
+	function handleDotDblClick(e?: any) {
 		if (pointClickTimer) {
 			clearTimeout(pointClickTimer);
 			pointClickTimer = null;
 		}
+		const feature = e?.features?.[0];
+		if (map && feature?.source === 'clustered-source' && isSpiderfiedFeature(feature.id)) {
+			e.preventDefault();
+			zoomSpiderfyIn(map);
+		}
 	}
 
-	// Spiderfied leaves behave exactly like individual dots.
-	const spiderfyLeafHandlers = { click: handleDotClick, dblclick: handleDotDblClick };
+	// Spiderfied leaves click like individual dots, but a double-click zooms in
+	// around the fan and keeps it open instead of the native zoom (which would
+	// collapse it).
+	function handleLeafDblClick(e: any) {
+		handleDotDblClick();
+		e.preventDefault();
+		if (map) zoomSpiderfyIn(map);
+	}
+
+	const spiderfyLeafHandlers = { click: handleDotClick, dblclick: handleLeafDblClick };
 
 	// Pie charts: unchanged immediate single-click behavior (not part of this change).
 	function handlePieClick(e: any) {
@@ -242,6 +270,13 @@
 		clusterClickTimer = setTimeout(() => {
 			clusterClickTimer = null;
 
+			// Clicking the faded center dot of the cluster that's currently fanned
+			// out collapses it.
+			if (map && isSpiderfiedFeature(feature.id)) {
+				clearSpiderfy(map);
+				return;
+			}
+
 			// A cluster whose own expansion zoom is past CLUSTER_MAX_ZOOM can never
 			// be split further by zooming -- every point inside is at (or
 			// effectively at) the exact same coordinates. Fan those out instead of
@@ -278,8 +313,17 @@
 		}, CLICK_DELAY);
 	}
 
-	// Double-click on a cluster: cancel the pending popover and zoom straight to the
-	// level where this cluster splits, instead of the generic +1 native zoom.
+	// Padding (px) kept around a cluster's studies when a double-click zooms to fit them.
+	const CLUSTER_FIT_PADDING = 80;
+	// Zoom levels to stop short of a tight fit, leaving some surrounding context
+	// (each level is 2x, so 1 shows roughly twice the width of the studies' extent).
+	const CLUSTER_FIT_ZOOM_BACKOFF = 1;
+	// Most zoom levels a single cluster double-click may jump (each level is 2x).
+	const CLUSTER_MAX_ZOOM_JUMP = 5;
+
+	// Double-click on a cluster: cancel the pending popover and zoom to fit every
+	// study in the cluster, so one double-click lands on the area the user was
+	// pointing at instead of stepping in a level or two at a time.
 	function handleClusterDblClick(e: any) {
 		if (clusterClickTimer) {
 			clearTimeout(clusterClickTimer);
@@ -288,44 +332,70 @@
 		if (!map || !e.features || e.features.length === 0) return;
 
 		// Prevent native double-click zoom now (synchronously); we'll zoom ourselves
-		// once the (async) expansion zoom comes back from the cluster index.
+		// once the (async) expansion zoom and leaves come back from the cluster index.
 		e.preventDefault();
 
 		const feature = e.features[0];
+
+		// Double-clicking the faded center dot of an open fan keeps zooming in,
+		// same as double-clicking one of its leaves.
+		if (isSpiderfiedFeature(feature.id)) {
+			zoomSpiderfyIn(map);
+			return;
+		}
+
 		const clusterId = feature.properties.cluster_id;
 		const coordinates = (feature.geometry as any).coordinates as [number, number];
 		const source = map.getSource('clustered-source') as any;
 		if (!source) return;
 
-		// maplibre-gl 5's getClusterExpansionZoom returns a Promise (no callback param).
-		source
-			.getClusterExpansionZoom(clusterId)
-			.then((zoom: number) => {
-				if (!map) return;
+		// maplibre-gl 5's getClusterExpansionZoom/getClusterLeaves return Promises.
+		Promise.all([
+			source.getClusterExpansionZoom(clusterId),
+			source.getClusterLeaves(clusterId, Infinity, 0)
+		])
+			.then(([expansionZoom, leaves]: [number, any[]]) => {
+				if (!map || !leaves || leaves.length === 0) return;
 
-				// A "stuck" cluster (see handleClusterClick)
-				// has nothing to zoom to -- expansionZoom is just Supercluster's
-				// maxZoom+1 fallback for a cluster that can never actually split, since
-				// every point is at the same coordinates. Zooming there anyway jumps
-				// past clusterMaxZoom into unclustered points-layer, where all those
-				// coincident points render stacked at the exact same pixel -- a
-				// jarring zoom into what looks like a single, oddly-colored dot
-				// (each point's own design color blending through the others'
-				// opacity). Spiderfy instead, same as a single click.
-				if (zoom > CLUSTER_MAX_ZOOM) {
-					source
-						.getClusterLeaves(clusterId, Infinity, 0)
-						.then((leaves: any[]) => {
-							if (!leaves || leaves.length === 0 || !map) return;
-							spiderfyCluster(map, coordinates, feature.id, leaves, spiderfyLeafHandlers);
-						})
-						.catch((err: any) => console.error('Failed to get cluster leaves:', err));
+				// A "stuck" cluster (see handleClusterClick) has nothing to zoom to --
+				// expansionZoom is just Supercluster's maxZoom+1 fallback for a cluster
+				// that can never actually split, since every point is at the same
+				// coordinates. Zooming there anyway jumps past clusterMaxZoom into
+				// unclustered points-layer, where all those coincident points render
+				// stacked at the exact same pixel. Spiderfy instead, same as a single click.
+				if (expansionZoom > CLUSTER_MAX_ZOOM) {
+					spiderfyCluster(map, coordinates, feature.id, leaves, spiderfyLeafHandlers);
 					return;
 				}
 
-				map.easeTo({ center: coordinates, zoom });
+				let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+				for (const leaf of leaves) {
+					const [lng, lat] = leaf.geometry.coordinates;
+					if (lng < minLng) minLng = lng;
+					if (lng > maxLng) maxLng = lng;
+					if (lat < minLat) minLat = lat;
+					if (lat > maxLat) maxLat = lat;
+				}
+				const camera = map.cameraForBounds(
+					[[minLng, minLat], [maxLng, maxLat]],
+					{ padding: CLUSTER_FIT_PADDING }
+				);
+
+				// Aim to zoom in at least to the cluster's own split point (so the
+				// double-click breaks it apart), stopping at CLUSTER_MAX_ZOOM. But never
+				// jump more than CLUSTER_MAX_ZOOM_JUMP levels at once: a tight cluster
+				// seen from a continent-wide view would otherwise dive to street level
+				// in one go. It may then take another double-click to split it.
+				const fitZoom = (camera?.zoom ?? expansionZoom) - CLUSTER_FIT_ZOOM_BACKOFF;
+				const targetZoom = Math.max(expansionZoom, Math.min(fitZoom, CLUSTER_MAX_ZOOM));
+				const zoom = Math.min(targetZoom, map.getZoom() + CLUSTER_MAX_ZOOM_JUMP);
+				const center = camera?.center ?? coordinates;
+
+				// flyTo pulls back slightly and arcs in, which keeps big jumps easier to
+				// follow than easeTo's straight glide.
+				map.flyTo({ center, zoom });
 			})
-			.catch((err: any) => console.error('Failed to get cluster expansion zoom:', err));
+			.catch((err: any) => console.error('Failed to zoom to cluster:', err));
 	}
 
 	// Setup event handlers for all visualization types.
@@ -365,7 +435,13 @@
 	function handleBackgroundClickForSpiderfy(e: any) {
 		if (!map || !isSpiderfyActive(map)) return;
 		const hits = map.queryRenderedFeatures(e.point, { layers: [LEAVES_LAYER_ID, 'clusters'] });
-		if (hits.length === 0) {
+		// The faded points under the fan's center are handled by handleDotClick.
+		const fadedPointHit = map.getLayer('points-layer')
+			? map
+					.queryRenderedFeatures(e.point, { layers: ['points-layer'] })
+					.some((f) => isSpiderfiedFeature(f.id))
+			: false;
+		if (hits.length === 0 && !fadedPointHit) {
 			clearSpiderfy(map);
 		}
 	}
