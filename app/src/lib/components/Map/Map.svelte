@@ -28,7 +28,8 @@
 	import { parseUrlFilters, serializeFiltersToUrl, debounce } from './utils/urlParams';
 	import { processPathogenData } from './utils/csvDataProcessor';
 	import { isClickOnVisibleRaster } from './utils/rasterClickUtils';
-	import { preloadData } from './utils/MapInitializer';
+	import { preloadData, addHomeButton } from './utils/MapInitializer';
+	import { clearSpiderfy } from './utils/spiderfy';
 	import {
 		getRasterValueAtCoordinate,
 		getRasterValueAtCoordinateFast,
@@ -56,8 +57,12 @@
 	// Props that can be passed to the component
 	// Previous default (whole-world view), kept here in case we need to revert:
 	// initialCenter = [-25, 16], initialZoom = 1.2
-	export let initialCenter: [number, number] = [7, 5.163677201297574]; // Default center coordinates [lng, lat]
-	export let initialZoom: number = 2.0; // Default zoom level
+	// Kept separate from initialCenter/initialZoom, which a shared URL can
+	// override on load, so the home button always returns to the true default.
+	const DEFAULT_CENTER: [number, number] = [7, 5.163677201297574]; // [lng, lat]
+	const DEFAULT_ZOOM = 2.0;
+	export let initialCenter: [number, number] = DEFAULT_CENTER; // Default center coordinates [lng, lat]
+	export let initialZoom: number = DEFAULT_ZOOM; // Default zoom level
 	export let initialStyleId: string | null = null; // Optional style ID to use
 
 	// Track the global opacity value for raster layers
@@ -221,6 +226,8 @@
 		// only valid at the zoom level they were opened at, so close it as soon as
 		// the zoom starts changing rather than let it show stale data.
 		map.on('zoomstart', closePointPopovers);
+
+		addHomeButton(map, resetMapView);
 
 		// Load data immediately when map is ready
 		// DISABLED: Data is already loaded by preloadData in MapInitializer
@@ -607,6 +614,17 @@
 
 	// Dismiss any open point/cluster popover, e.g. when the zoom level changes and its
 	// contents (the study list for a cluster) no longer reflect the current view.
+	// Home button: back to the default world view, un-rotated and flat. Closes
+	// popovers and any spiderfied group explicitly, since a reset that's only a
+	// pan (already at the default zoom) wouldn't trigger the zoom-based closing.
+	// Filters and layers are left alone.
+	function resetMapView() {
+		if (!map) return;
+		closePointPopovers();
+		clearSpiderfy(map);
+		map.flyTo({ center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM, bearing: 0, pitch: 0 });
+	}
+
 	function closePointPopovers() {
 		showPopover = false;
 		showMultiPointPopover = false;

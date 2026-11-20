@@ -111,6 +111,30 @@ export function initializeMap(
 }
 
 /**
+ * Add a "home" (reset view) button to the navigation control, between its
+ * zoom-in and zoom-out buttons. Must be called after initializeMap has added
+ * the NavigationControl.
+ * @param map The map instance
+ * @param onClick Called when the button is clicked
+ */
+export function addHomeButton(map: MaplibreMap, onClick: () => void): void {
+  const zoomInButton = map.getContainer().querySelector('.maplibregl-ctrl-zoom-in');
+  if (!zoomInButton || zoomInButton.parentElement?.querySelector('.maplibregl-ctrl-home')) return;
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'maplibregl-ctrl-home';
+  button.title = 'Reset map view';
+  button.setAttribute('aria-label', 'Reset map view');
+  button.innerHTML =
+    '<svg viewBox="0 0 24 24" width="17" height="17" style="display:block;margin:auto" aria-hidden="true">' +
+    '<path d="M12 4 3 11.5h2.5V20h5v-5h3v5h5v-8.5H21z" fill="#333"/></svg>';
+  button.addEventListener('click', onClick);
+
+  zoomInButton.insertAdjacentElement('afterend', button);
+}
+
+/**
  * Add event listeners to the map
  * @param map The map instance
  * @param onStyleChange Callback for style change events
