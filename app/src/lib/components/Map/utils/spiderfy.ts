@@ -8,8 +8,9 @@
 // without generating per-design-type icon images first. This draws the leaves
 // as plain MapLibre circle + line layers, reusing the points-layer styling.
 
-import type { Map as MaplibreMap, MapGeoJSONFeature } from 'maplibre-gl';
+import type { Map as MaplibreMap, MapGeoJSONFeature, GeoJSONSource } from 'maplibre-gl';
 import {
+  CLUSTER_MAX_ZOOM,
   INDIVIDUAL_DOT_RADIUS,
   generateDesignColorExpression,
   generateDesignStrokeColorExpression
@@ -28,11 +29,18 @@ export interface SpiderfyLeafHandlers {
 }
 
 let activeLeafHandlers: SpiderfyLeafHandlers | null = null;
+// What's currently fanned out, kept so the layout can be redrawn as the zoom
+// changes.
+let activeCenter: [number, number] | null = null;
+let activeLeafProperties: any[] = [];
+// clustered-source feature ids (MapLibre's generated ids, not Supercluster's
+// cluster_id) currently faded behind the fan: the cluster circle at zoom <=
+// CLUSTER_MAX_ZOOM, or the individual points stacked at the center above it.
+// Point ids (0..n-1) and cluster ids (always >= n) can't collide.
+let fadedFeatureIds: (string | number)[] = [];
 let activeZoomHandler: (() => void) | null = null;
-// The MapLibre-assigned numeric feature.id of the currently-faded cluster
-// circle (distinct from Supercluster's own cluster_id, which isn't usable
-// with setFeatureState). Tracked here so clearSpiderfy can restore it.
-let activeClusterFeatureId: string | number | null = null;
+let activeMoveEndHandler: (() => void) | null = null;
+let activeIdleHandler: (() => void) | null = null;
 
 function setLeafCursor(e: any) {
   e.target.getCanvas().style.cursor = 'pointer';
@@ -109,19 +117,14 @@ export function isSpiderfyActive(map: MaplibreMap): boolean {
   return !!map.getSource(LEAVES_SOURCE_ID);
 }
 
+// True if `featureId` (a clustered-source cluster or point) is faded behind
+// the current fan, so a click on it can collapse the fan.
+export function isSpiderfiedFeature(featureId: string | number | undefined): boolean {
+  return featureId !== undefined && fadedFeatureIds.includes(featureId);
+}
+
 export function clearSpiderfy(map: MaplibreMap): void {
-  if (activeClusterFeatureId !== null) {
-    try {
-      map.setFeatureState(
-        { source: 'clustered-source', id: activeClusterFeatureId },
-        { spiderfied: false }
-      );
-    } catch (e) {
-      // Source may have been rebuilt (filter change, style swap) since this id
-      // was assigned -- nothing meaningful to restore in that case.
-    }
-    activeClusterFeatureId = null;
-  }
+  setFadedFeatures(map, []);
 
   // Detach listeners unconditionally: a base map style swap removes our layers
   // and sources but not layer-scoped listeners, which would otherwise pile up
@@ -134,10 +137,12 @@ export function clearSpiderfy(map: MaplibreMap): void {
     activeLeafHandlers = null;
     map.getCanvas().style.cursor = '';
   }
-  if (activeZoomHandler) {
-    map.off('zoomstart', activeZoomHandler);
-    activeZoomHandler = null;
-  }
+  if (activeZoomHandler) map.off('zoom', activeZoomHandler);
+  if (activeMoveEndHandler) map.off('moveend', activeMoveEndHandler);
+  if (activeIdleHandler) map.off('idle', activeIdleHandler);
+  activeZoomHandler = activeMoveEndHandler = activeIdleHandler = null;
+  activeCenter = null;
+  activeLeafProperties = [];
 
   try {
     if (map.getLayer(LEAVES_LAYER_ID)) map.removeLayer(LEAVES_LAYER_ID);
@@ -164,38 +169,12 @@ export function spiderfyCluster(
   clearSpiderfy(map);
   if (leaves.length === 0) return;
 
-  const centerPixel = map.project(clusterCoordinates);
-  const offsets = pointsInSpiral(leaves.length);
-
-  const leafFeatures = leaves.map((leaf, i) => {
-    const [dx, dy] = offsets[i];
-    const leafLngLat = map.unproject([centerPixel.x + dx, centerPixel.y + dy]);
-    return {
-      type: 'Feature' as const,
-      id: i,
-      geometry: { type: 'Point' as const, coordinates: [leafLngLat.lng, leafLngLat.lat] },
-      properties: leaf.properties
-    };
-  });
-
-  const legFeatures = leafFeatures.map((f) => ({
-    type: 'Feature' as const,
-    geometry: {
-      type: 'LineString' as const,
-      coordinates: [clusterCoordinates, f.geometry.coordinates]
-    },
-    properties: {}
-  }));
+  const leafProperties = leaves.map((leaf) => leaf.properties);
+  const { leafCollection, legCollection } = buildLayout(map, clusterCoordinates, leafProperties);
 
   try {
-    map.addSource(LEGS_SOURCE_ID, {
-      type: 'geojson',
-      data: { type: 'FeatureCollection', features: legFeatures }
-    });
-    map.addSource(LEAVES_SOURCE_ID, {
-      type: 'geojson',
-      data: { type: 'FeatureCollection', features: leafFeatures }
-    });
+    map.addSource(LEGS_SOURCE_ID, { type: 'geojson', data: legCollection });
+    map.addSource(LEAVES_SOURCE_ID, { type: 'geojson', data: leafCollection });
 
     map.addLayer({
       id: LEGS_LAYER_ID,
@@ -226,33 +205,156 @@ export function spiderfyCluster(
     return;
   }
 
+  activeCenter = clusterCoordinates;
+  activeLeafProperties = leafProperties;
   activeLeafHandlers = leafHandlers;
   map.on('click', LEAVES_LAYER_ID, leafHandlers.click);
   map.on('dblclick', LEAVES_LAYER_ID, leafHandlers.dblclick);
   map.on('mouseenter', LEAVES_LAYER_ID, setLeafCursor);
   map.on('mouseleave', LEAVES_LAYER_ID, resetLeafCursor);
 
-  // Persist through panning -- the leaves/legs are real lng/lat GeoJSON
-  // features, so MapLibre repaints them at the correct screen position as the
-  // camera moves, with no extra work needed here. Still collapse on zoom,
-  // since the fixed-pixel-radius layout would otherwise look wrong (too
-  // large/small relative to the now-differently-scaled map), and because a
-  // zoom in may be the user trying to split the cluster for real.
-  activeZoomHandler = () => clearSpiderfy(map);
-  map.once('zoomstart', activeZoomHandler);
+  // Panning needs nothing: the leaves/legs are real lng/lat features, so
+  // MapLibre repaints them in place. Zooming changes how far apart the
+  // fixed-pixel layout is in lng/lat, so redraw it every zoom frame. The
+  // group can never split on zoom-in (its points share one location), so the
+  // fan only collapses when a zoom-out merges it with other dots -- checked
+  // once the map settles, since mid-animation the new zoom level's clusters
+  // may not be loaded yet and would look like a merge.
+  activeZoomHandler = () => {
+    relayout(map);
+    syncFadedFeatures(map, false);
+  };
+  activeMoveEndHandler = () => {
+    if (activeIdleHandler) map.off('idle', activeIdleHandler);
+    activeIdleHandler = () => {
+      activeIdleHandler = null;
+      syncFadedFeatures(map, true);
+    };
+    map.once('idle', activeIdleHandler);
+  };
+  map.on('zoom', activeZoomHandler);
+  map.on('moveend', activeMoveEndHandler);
 
   // Fade the original cluster circle down near-invisible while spiderfied
   // (see the 'clusters' layer's circle-opacity expression), instead of
   // hiding it outright.
-  if (clusterFeatureId !== undefined) {
+  if (clusterFeatureId !== undefined) setFadedFeatures(map, [clusterFeatureId]);
+}
+
+// Zoom in one level around the fanned-out cluster (rather than around the
+// cursor, which could push the fan off screen). The fan follows the zoom.
+export function zoomSpiderfyIn(map: MaplibreMap): void {
+  if (!activeCenter || !isSpiderfyActive(map)) return;
+  const targetZoom = Math.min(Math.floor(map.getZoom()) + 1, map.getMaxZoom());
+  if (targetZoom <= map.getZoom()) return;
+  // Callers run inside a MapLibre dblclick listener, and MapLibre stops any
+  // camera animation started while it's still handling that input event
+  // (HandlerManager calls map._stop()). Start the zoom once it's done.
+  const center = activeCenter;
+  setTimeout(() => map.easeTo({ center, zoom: targetZoom }), 0);
+}
+
+// Leaf and leg features for `leafProperties` fanned out around `center`, at
+// the map's current zoom (offsets are fixed pixel distances).
+function buildLayout(map: MaplibreMap, center: [number, number], leafProperties: any[]) {
+  const centerPixel = map.project(center);
+  const offsets = pointsInSpiral(leafProperties.length);
+
+  const leafFeatures = leafProperties.map((properties, i) => {
+    const [dx, dy] = offsets[i];
+    const leafLngLat = map.unproject([centerPixel.x + dx, centerPixel.y + dy]);
+    return {
+      type: 'Feature' as const,
+      id: i,
+      geometry: { type: 'Point' as const, coordinates: [leafLngLat.lng, leafLngLat.lat] },
+      properties
+    };
+  });
+
+  const legFeatures = leafFeatures.map((f) => ({
+    type: 'Feature' as const,
+    geometry: { type: 'LineString' as const, coordinates: [center, f.geometry.coordinates] },
+    properties: {}
+  }));
+
+  return {
+    leafCollection: { type: 'FeatureCollection' as const, features: leafFeatures },
+    legCollection: { type: 'FeatureCollection' as const, features: legFeatures }
+  };
+}
+
+function relayout(map: MaplibreMap) {
+  if (!activeCenter) return;
+  const { leafCollection, legCollection } = buildLayout(map, activeCenter, activeLeafProperties);
+  (map.getSource(LEAVES_SOURCE_ID) as GeoJSONSource | undefined)?.setData(leafCollection as any);
+  (map.getSource(LEGS_SOURCE_ID) as GeoJSONSource | undefined)?.setData(legCollection as any);
+}
+
+// Replace the set of faded clustered-source features with `ids`.
+function setFadedFeatures(map: MaplibreMap, ids: (string | number)[]) {
+  for (const id of fadedFeatureIds) {
+    if (ids.includes(id)) continue;
     try {
-      map.setFeatureState(
-        { source: 'clustered-source', id: clusterFeatureId },
-        { spiderfied: true }
-      );
-      activeClusterFeatureId = clusterFeatureId;
+      map.setFeatureState({ source: 'clustered-source', id }, { spiderfied: false });
+    } catch (e) {
+      // Source may have been rebuilt (filter change, style swap) since this id
+      // was assigned -- nothing meaningful to restore in that case.
+    }
+  }
+  const applied: (string | number)[] = [];
+  for (const id of ids) {
+    try {
+      map.setFeatureState({ source: 'clustered-source', id }, { spiderfied: true });
+      applied.push(id);
     } catch (e) {
       console.warn('[spiderfy] Error setting spiderfied feature-state:', e);
     }
+  }
+  fadedFeatureIds = applied;
+}
+
+// Clusters are rebuilt per zoom level with new feature ids, so after a zoom
+// whatever sits under the fan is a different feature than the one we faded.
+// Find what now represents this group at the fan's center and fade that:
+// - above CLUSTER_MAX_ZOOM nothing clusters, so it's the group's own points,
+//   stacked on the center pixel;
+// - otherwise it's a cluster of exactly this many points at the center. If
+//   there isn't one, a zoom-out has merged the group with dots elsewhere --
+//   collapse the fan when `allowCollapse` (i.e. the map has settled).
+function syncFadedFeatures(map: MaplibreMap, allowCollapse: boolean) {
+  if (!activeCenter) return;
+  const center = map.project(activeCenter);
+  // Off screen (panned away, or zoomed around a cursor elsewhere) there's
+  // nothing rendered to query, which would read as a merge. Wait until it's
+  // back in view.
+  const canvas = map.getCanvas();
+  if (center.x < 0 || center.y < 0 || center.x > canvas.clientWidth || center.y > canvas.clientHeight) {
+    return;
+  }
+  const atCenter = (f: MapGeoJSONFeature) => {
+    const p = map.project((f.geometry as any).coordinates);
+    return Math.abs(p.x - center.x) < 1 && Math.abs(p.y - center.y) < 1;
+  };
+
+  if (map.getZoom() > CLUSTER_MAX_ZOOM) {
+    if (!map.getLayer('points-layer')) return;
+    const points = map
+      .queryRenderedFeatures(center, { layers: ['points-layer'] })
+      .filter(atCenter)
+      .map((f) => f.id)
+      .filter((id): id is string | number => id !== undefined);
+    if (points.length > 0) setFadedFeatures(map, points);
+    return;
+  }
+
+  if (!map.getLayer('clusters')) return;
+  const cluster = map
+    .queryRenderedFeatures(center, { layers: ['clusters'] })
+    .find((f) => atCenter(f) && f.properties?.point_count === activeLeafProperties.length);
+
+  if (cluster && cluster.id !== undefined) {
+    setFadedFeatures(map, [cluster.id]);
+  } else if (allowCollapse) {
+    clearSpiderfy(map);
   }
 }

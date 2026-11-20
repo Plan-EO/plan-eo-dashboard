@@ -317,8 +317,13 @@ function addClusterLayers(map: MaplibreMap, visibility: 'visible' | 'none') {
           // Fade a cluster near-invisible while its points are spiderfied,
           // leaving a faint center dot behind the fanned-out leaves. See
           // spiderfy.ts for where 'spiderfied' feature-state is set/cleared.
+          // Hovering a spiderfied center brightens it so it reads as clickable
+          // (clicking it collapses the fan).
           'circle-opacity': [
-            'case', ['boolean', ['feature-state', 'spiderfied'], false],
+            'case',
+            ['all', ['boolean', ['feature-state', 'spiderfied'], false], ['boolean', ['feature-state', 'hover'], false]],
+            0.35,
+            ['boolean', ['feature-state', 'spiderfied'], false],
             0.08,
             0.9
           ] as any,
@@ -335,7 +340,10 @@ function addClusterLayers(map: MaplibreMap, visibility: 'visible' | 'none') {
           // circle-stroke-opacity ignores circle-opacity, so fade it too or a
           // spiderfied cluster looks like an empty ring.
           'circle-stroke-opacity': [
-            'case', ['boolean', ['feature-state', 'spiderfied'], false],
+            'case',
+            ['all', ['boolean', ['feature-state', 'spiderfied'], false], ['boolean', ['feature-state', 'hover'], false]],
+            0.35,
+            ['boolean', ['feature-state', 'spiderfied'], false],
             0.08,
             1
           ] as any
@@ -377,9 +385,26 @@ function addClusterLayers(map: MaplibreMap, visibility: 'visible' | 'none') {
             INDIVIDUAL_DOT_RADIUS
           ] as any,
           'circle-color': generateDesignColorExpression() as any,
-          'circle-opacity': 0.95,
+          // Past CLUSTER_MAX_ZOOM a spiderfied group's own points sit stacked under
+          // the fan's center; fade them like the clusters layer does (see spiderfy.ts).
+          'circle-opacity': [
+            'case',
+            ['all', ['boolean', ['feature-state', 'spiderfied'], false], ['boolean', ['feature-state', 'hover'], false]],
+            0.35,
+            ['boolean', ['feature-state', 'spiderfied'], false],
+            0.08,
+            0.95
+          ] as any,
           'circle-stroke-width': 2,
-          'circle-stroke-color': generateDesignStrokeColorExpression() as any
+          'circle-stroke-color': generateDesignStrokeColorExpression() as any,
+          'circle-stroke-opacity': [
+            'case',
+            ['all', ['boolean', ['feature-state', 'spiderfied'], false], ['boolean', ['feature-state', 'hover'], false]],
+            0.35,
+            ['boolean', ['feature-state', 'spiderfied'], false],
+            0.08,
+            1
+          ] as any
         }
       });
     } catch (e) { console.warn('Failed to add points-layer:', e); }
