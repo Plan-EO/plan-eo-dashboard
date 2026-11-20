@@ -43,6 +43,9 @@
 	// Panel state
 	let collapsed = false;
 	let pathogensExpanded = false;
+	// Whether the active pathogen's Age Group / Syndrome / Display panel is open.
+	// Can be closed on its own once a layer is added, leaving the dots on the map.
+	let pathogenConfigExpanded = false;
 	let riskFactorsExpanded = false;
 	let rfOpenSubcategory = ''; // which sub-category is vertically expanded
 	let activeLayersExpanded = true;
@@ -355,11 +358,30 @@
 		handleFilterChange();
 	}
 
+	// "<" in the Age Group / Syndrome / Display panel: go back one step. A layer
+	// already added to the map stays (remove it from Active Layers); an
+	// uncommitted selection is abandoned.
+	function closePathogenConfig() {
+		if (layerAdded) {
+			pathogenConfigExpanded = false;
+		} else {
+			clearActivePathogen();
+		}
+	}
+
 	async function activatePathogen(pathogen: string) {
 		if (activePathogen === pathogen) {
-			clearActivePathogen();
+			// Clicking the active pathogen reopens its panel if that's closed.
+			// With the panel open, it deselects an uncommitted selection, as
+			// before, but leaves a layer that's on the map alone.
+			if (!pathogenConfigExpanded) {
+				pathogenConfigExpanded = true;
+			} else if (!layerAdded) {
+				clearActivePathogen();
+			}
 			return;
 		}
+		pathogenConfigExpanded = true;
 		hideAll();
 		layerAdded = false;
 		activePathogen = pathogen;
@@ -820,7 +842,7 @@
 	{/if}
 
 	<!-- ── Config Panel (appears to right of Pathogens when a pathogen is active) ── -->
-	{#if activePathogen && pathogensExpanded && !collapsed}
+	{#if activePathogen && pathogensExpanded && pathogenConfigExpanded && !collapsed}
 		<div
 			class="{panelBase} w-48"
 			transition:fly={{ x: -40, duration: 220, opacity: 0 }}
@@ -830,7 +852,7 @@
 				<div class="flex items-center gap-2">
 					<button
 						class="text-base-content/50 hover:text-base-content transition-colors"
-						onclick={() => clearActivePathogen()}
+						onclick={closePathogenConfig}
 						title="Back to pathogen list"
 					>
 						<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
